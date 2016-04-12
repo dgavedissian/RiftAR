@@ -9,7 +9,7 @@
 #include <GLFW/glfw3.h>
 
 // OVR
-#include <OVR.h>
+#include <OVR_CAPI.h>
 
 // RealSense Camera
 #include "CameraRSF200.h"
@@ -47,6 +47,9 @@ int main(int argc, char** argv)
 		MessageBoxA(nullptr, "Oh noes! Something bad happened!", "Error", 0);
 		return 1;
 	}
+
+	// Set up the camera
+	CameraRSF200 camera;
 
 	// Main loop
 	while (!glfwWindowShouldClose(window))

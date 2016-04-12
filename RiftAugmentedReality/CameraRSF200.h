@@ -3,8 +3,6 @@
 #include <pxcsensemanager.h>
 #include <pxcprojection.h>
 
-#if 0
-
 // RealSense F200 interface
 class CameraRSF200 : public PXCSenseManager::Handler
 {
@@ -14,8 +12,9 @@ public:
 
 	void init(int frameWidth, int frameHeight, float frameRate);
 
-	bool ready()
+	bool ready();
 
+		/*
 	bool getAllFrames(cv::Mat &color, cv::Mat &depth, cv::Mat &infra);
 
 	bool getColorFrame(cv::Mat &color);
@@ -33,26 +32,29 @@ public:
 	bool getAlignedColorFrame(cv::Mat &color);
 
 	bool getAlignedDepthFrame(cv::Mat &depth);
+	*/
 
-	double getFPS()
+	/*double getFPS()
 	{
 		return fps.getFrequency();
-	}
+	}*/
 
-	virtual pxcStatus PXCAPI OnNewSample(pxcUID, PXCCapture::Sample *sample);
+	pxcStatus PXCAPI OnNewSample(pxcUID, PXCCapture::Sample *sample) override;
 
 private:
-	bool m_frame_ready;
-	PXCSenseManager *sense_manager;
+	bool mFrameReady;
+	PXCSenseManager *mSenseManager;
 	PXCProjection *proj;
-	PXCRangeF32 m_frame_rate;
-	PXCSizeI32 m_frame_size;
+	PXCRangeF32 mFrameRate;
+	PXCSizeI32 mFrameSize;
+
+	GLuint mTextureID;
+	/*
 	cv::Mat m_color_frame;
 	cv::Mat m_depth_frame;
 	cv::Mat m_infra_frame;
 	cv::Mat m_warped_color_frame;
 	cv::Mat m_warped_depth_frame;
 	FrequencyMonitor fps;
+	*/
 };
-
-#endif

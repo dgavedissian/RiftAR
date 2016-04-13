@@ -5,3 +5,9 @@ This project depends on the following libraries to exist in the RiftAugmentedRea
 
     - GLFW 3.1.x (named as glfw)
     - etc
+
+Useful:
+
+	- https://github.com/OculusRiftInAction/OculusRiftInAction
+	- https://github.com/IntelRealSense/librealsense
+	- https://github.com/stereolabs/zed-oculus

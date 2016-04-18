@@ -8,11 +8,10 @@ FullscreenQuad::FullscreenQuad() :
 {
     // Declare vertex and index data
     float vertexData[] = {
-        // position,    tex coord
-        -1.0f, 1.0f,    0.0f, 0.0f, // top left
-        1.0f, 1.0f,     1.0f, 0.0f, // top right
-        -1.0f, -1.0f,   0.0f, 1.0f, // bottom left
-        1.0f, -1.0f,    1.0f, 1.0f  // bottom right
+        -1.0f, 1.0f,    // top left
+        1.0f, 1.0f,     // top right
+        -1.0f, -1.0f,   // bottom left
+        1.0f, -1.0f     // bottom right
     };
     GLuint elementData[] = {
         0, 1, 2, 2, 1, 3
@@ -29,9 +28,7 @@ FullscreenQuad::FullscreenQuad() :
 
     // Set up vertex layout
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(sizeof(float) * 2));
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
 
     // Set up element buffer
     glGenBuffers(1, &mElementBufferObject);

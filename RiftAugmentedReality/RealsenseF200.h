@@ -6,17 +6,17 @@
 class RealsenseF200
 {
 public:
-	RealsenseF200(int width, int height, float frameRate);
-	~RealsenseF200();
+    RealsenseF200(int width, int height, float frameRate);
+    ~RealsenseF200();
 
     void bindAndUpdate();
 
     GLuint getTexture() const { return mTextureID; }
 
 private:
-	int mWidth;
-	int mHeight;
-	rs::context* mContext;
-	rs::device* mDevice;
-	GLuint mTextureID;
+    int mWidth;
+    int mHeight;
+    rs::context* mContext;
+    rs::device* mDevice;
+    GLuint mTextureID;
 };

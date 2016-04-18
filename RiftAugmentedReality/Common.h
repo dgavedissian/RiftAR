@@ -10,10 +10,10 @@ using std::endl;
 
 // Windows Headers
 #ifdef _WIN32
-#define NOMINMAX				// Stop Windows.h from defining annoying min/max macros
-#define WIN32_LEAN_AND_MEAN		// Strip out some unneded stuff from Windows.h
-#include <Windows.h>			// WinMain function
-#include <cstdlib>				// __argc and __argv
+#define NOMINMAX                // Stop Windows.h from defining annoying min/max macros
+#define WIN32_LEAN_AND_MEAN     // Strip out some unneded stuff from Windows.h
+#include <Windows.h>            // WinMain function
+#include <cstdlib>              // __argc and __argv
 #endif
 
 // GL and GLFW
@@ -28,3 +28,14 @@ using std::endl;
 #include <glm/mat3x3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
+// Check GL
+#define TEST_GL(x) x; CheckGL(__FILE__ ":" + std::to_string(__LINE__))
+inline void CheckGL(string fileAndLine)
+{
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR)
+    {
+        throw std::runtime_error(string("OpenGL Error! " + fileAndLine + "\nError: ") + std::to_string(error));
+    }
+}

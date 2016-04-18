@@ -8,5 +8,5 @@ out vec4 colour;
 
 void main()
 {
-    colour = vec4(texture(cameraImage, oTexCoord), 1.0);
+    colour = vec4(texture(cameraImage, oTexCoord).rgb, 1.0);
 }

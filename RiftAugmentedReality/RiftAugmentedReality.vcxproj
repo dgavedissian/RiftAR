@@ -57,13 +57,13 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)3rdparty;$(ProjectDir)3rdparty\glfw\include;$(ProjectDir)3rdparty\OculusSDK\LibOVR\Include;$(ProjectDir)3rdparty\OculusSDK\LibOVRKernel\Src;C:\Program Files (x86)\Intel\RSSDK\include;C:\Program Files (x86)\ZED SDK\dependencies\opencv_2.4.9\include;C:\Program Files (x86)\ZED SDK\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)3rdparty;$(ProjectDir)3rdparty\glfw\include;$(ProjectDir)3rdparty\OculusSDK\LibOVR\Include;$(ProjectDir)3rdparty\OculusSDK\LibOVRKernel\Src;$(ProjectDir)..\..\librealsense\include;C:\Program Files (x86)\ZED SDK\dependencies\opencv_2.4.9\include;C:\Program Files (x86)\ZED SDK\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)3rdparty\glfw\lib-vc2013;$(ProjectDir)3rdparty\OculusSDK\LibOVR\Lib\Windows\Win32\Release\VS2013;C:\Program Files (x86)\Intel\RSSDK\lib\Win32;C:\Program Files (x86)\ZED SDK\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>sl_zed64.lib;glfw3.lib;LibOVR.lib;opengl32.lib;libpxc_d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)3rdparty\glfw\lib-vc2013;$(ProjectDir)3rdparty\OculusSDK\LibOVR\Lib\Windows\Win32\Release\VS2013;$(ProjectDir)..\..\librealsense\bin\Win32;C:\Program Files (x86)\ZED SDK\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>sl_zed64.lib;glfw3.lib;LibOVR.lib;opengl32.lib;realsense-d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -75,15 +75,15 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)3rdparty;$(ProjectDir)3rdparty\glfw\include;$(ProjectDir)3rdparty\OculusSDK\LibOVR\Include;$(ProjectDir)3rdparty\OculusSDK\LibOVRKernel\Src;C:\Program Files (x86)\Intel\RSSDK\include;C:\Program Files (x86)\ZED SDK\dependencies\opencv_2.4.9\include;C:\Program Files (x86)\ZED SDK\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)3rdparty;$(ProjectDir)3rdparty\glfw\include;$(ProjectDir)3rdparty\OculusSDK\LibOVR\Include;$(ProjectDir)3rdparty\OculusSDK\LibOVRKernel\Src;$(ProjectDir)..\..\librealsense\include;C:\Program Files (x86)\ZED SDK\dependencies\opencv_2.4.9\include;C:\Program Files (x86)\ZED SDK\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(ProjectDir)3rdparty\glfw\lib-vc2013;$(ProjectDir)3rdparty\OculusSDK\LibOVR\Lib\Windows\Win32\Release\VS2013;C:\Program Files (x86)\Intel\RSSDK\lib\Win32;C:\Program Files (x86)\ZED SDK\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>sl_zed64.lib;glfw3.lib;LibOVR.lib;opengl32.lib;libpxc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)3rdparty\glfw\lib-vc2013;$(ProjectDir)3rdparty\OculusSDK\LibOVR\Lib\Windows\Win32\Release\VS2013;$(ProjectDir)..\..\librealsense\bin\Win32;C:\Program Files (x86)\ZED SDK\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>sl_zed64.lib;glfw3.lib;LibOVR.lib;opengl32.lib;realsense.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

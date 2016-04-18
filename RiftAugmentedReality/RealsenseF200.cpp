@@ -1,36 +1,19 @@
 #include "Common.h"
 #include "RealsenseF200.h"
 
-RealsenseF200::RealsenseF200(int width, int height, float frameRate)
+RealsenseF200::RealsenseF200(int width, int height, float frameRate) :
+	mWidth(width),
+	mHeight(height)
 {
-	mSenseManager = PXCSenseManager::CreateInstance();
+	mContext = new rs::context();
+	if (mContext->get_device_count() == 0)
+	{
+		throw std::runtime_error("Unable to detect the Realsense F200");
+	}
 
-    mFrameRate.min = frameRate;
-    mFrameRate.max = frameRate;
-
-    mFrameSize.width = width;
-    mFrameSize.height = height;
-
-    // Select the color and depth streams
-    PXCVideoModule::StreamDesc sdesc;
-    sdesc.frameRate = mFrameRate;
-    sdesc.sizeMin = mFrameSize;
-    sdesc.sizeMax = mFrameSize;
-
-    PXCVideoModule::DataDesc ddesc = {};
-    ddesc.deviceInfo.streams = PXCCapture::STREAM_TYPE_COLOR | PXCCapture::STREAM_TYPE_DEPTH;
-    ddesc.streams.color = sdesc;
-    ddesc.streams.depth = sdesc;
-    mSenseManager->EnableStreams(&ddesc);
-
-    // Initializes
-    pxcStatus status = mSenseManager->Init();
-    cout << status << endl;
-    mSenseManager->Init();
-    if (status < PXC_STATUS_NO_ERROR)
-    {
-        throw std::runtime_error("Failed to locate any video stream(s)");
-    }
+	mDevice = mContext->get_device(0);
+	mDevice->enable_stream(rs::stream::color, width, height, rs::format::rgb8, 60);
+	mDevice->start();
 
     // Set up image
     glGenTextures(1, &mTextureID);
@@ -42,28 +25,15 @@ RealsenseF200::RealsenseF200(int width, int height, float frameRate)
 
 RealsenseF200::~RealsenseF200()
 {
-	if (mSenseManager)
-	{
-		mSenseManager->Close();
-		mSenseManager->Release();
-	}
+	delete mContext;
 }
 
 void RealsenseF200::bindAndUpdate()
 {
-    if (mSenseManager->AcquireFrame(true) < PXC_STATUS_NO_ERROR)
-        return;
-    
-    glBindTexture(GL_TEXTURE_2D, mTextureID);
-
-    PXCCapture::Sample* sample = mSenseManager->QuerySample();
+	mDevice->wait_for_frames();
 
     // Grab data
     // TODO: Use a pixel buffer object instead of glTexSubImage2D
-    PXCImage::ImageData imageData;
-    sample->color->AcquireAccess(PXCImage::ACCESS_READ, PXCImage::PIXEL_FORMAT_RGB24, &imageData);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mFrameSize.width, mFrameSize.height, GL_RGB, GL_UNSIGNED_BYTE, reinterpret_cast<void*>(imageData.planes[0]));
-    sample->color->ReleaseAccess(&imageData);
-
-    mSenseManager->ReleaseFrame();
+	glBindTexture(GL_TEXTURE_2D, mTextureID);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_RGB, GL_UNSIGNED_BYTE, mDevice->get_frame_data(rs::stream::color));
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <pxcsensemanager.h>
+#include <librealsense/rs.hpp>
 
 // RealSense F200 interface
 class RealsenseF200
@@ -14,9 +14,9 @@ public:
     GLuint getTexture() const { return mTextureID; }
 
 private:
-	PXCSenseManager *mSenseManager;
-	PXCRangeF32 mFrameRate;
-	PXCSizeI32 mFrameSize;
-
+	int mWidth;
+	int mHeight;
+	rs::context* mContext;
+	rs::device* mDevice;
 	GLuint mTextureID;
 };

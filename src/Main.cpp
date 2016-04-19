@@ -1,7 +1,7 @@
 #include "Common.h"
 #include "RealsenseF200.h"      // Realsense Camera
 #include <OVR_CAPI.h>           // LibOVR
-//#include <zed/Camera.hpp>       // ZED SDK
+#include <zed/Camera.hpp>       // ZED SDK
 
 #include "FullscreenQuad.h"
 #include "Shader.h"
@@ -59,17 +59,16 @@ int main(int argc, char** argv)
         }
 
         // Set up the ZED
-        /*
         sl::zed::Camera* zed = new sl::zed::Camera(sl::zed::HD720);
         int zWidth = zed->getImageSize().width;
         int zHeight = zed->getImageSize().height;
         sl::zed::ERRCODE zederror = zed->init(sl::zed::MODE::PERFORMANCE, 0);
         if (zederror != sl::zed::SUCCESS)
         {
-        ShowError("ZED camera not detected");
-        ovr_Shutdown();
-        glfwTerminate();
-        return EXIT_FAILURE;
+            ShowError("ZED camera not detected");
+            ovr_Shutdown();
+            glfwTerminate();
+            return EXIT_FAILURE;
         }
 
         // Generate OpenGL textures for the left and right eyes of the ZED camera
@@ -77,7 +76,6 @@ int main(int argc, char** argv)
         glGenTextures(1, &zedTextureL);
         glBindTexture(GL_TEXTURE_2D, zedTextureL);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, zWidth, zHeight, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
-        */
 
         // Set up the Realsense
         RealsenseF200 camera(640, 480, 60);

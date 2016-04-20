@@ -2,12 +2,11 @@
 
 #include <librealsense/rs.hpp>
 
-// RealSense F200 interface
-class RealsenseF200
+class F200Camera
 {
 public:
-    RealsenseF200(int width, int height, float frameRate);
-    ~RealsenseF200();
+    F200Camera(int width, int height, float frameRate);
+    ~F200Camera();
 
     void bindAndUpdate();
 

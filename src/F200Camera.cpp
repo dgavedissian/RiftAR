@@ -1,7 +1,7 @@
 #include "Common.h"
-#include "RealsenseF200.h"
+#include "F200Camera.h"
 
-RealsenseF200::RealsenseF200(int width, int height, float frameRate) :
+F200Camera::F200Camera(int width, int height, float frameRate) :
     mWidth(width),
     mHeight(height)
 {
@@ -23,12 +23,12 @@ RealsenseF200::RealsenseF200(int width, int height, float frameRate) :
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
 
-RealsenseF200::~RealsenseF200()
+F200Camera::~F200Camera()
 {
     delete mContext;
 }
 
-void RealsenseF200::bindAndUpdate()
+void F200Camera::bindAndUpdate()
 {
     mDevice->wait_for_frames();
 

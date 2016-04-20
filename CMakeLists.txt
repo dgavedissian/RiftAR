@@ -50,13 +50,15 @@ set(SRC_FILES
     src/Shader.cpp
     # ---------------
     src/Main.cpp
-    src/RealsenseF200.cpp)
+    src/F200Camera.cpp
+    src/ZEDCamera.cpp)
 set(HDR_FILES
     src/Common.h
     src/FullscreenQuad.h
     src/Shader.h
     # ---------------
-    src/RealsenseF200.h)
+    src/F200Camera.h
+    src/ZEDCamera.h)
 
 link_directories(${ZED_LIBRARY_DIR})
 add_executable(RiftAR ${SRC_FILES} ${HDR_FILES})

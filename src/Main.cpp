@@ -1,7 +1,7 @@
 #include "Common.h"
-#include "RealsenseF200.h"      // Realsense Camera
+#include "F200Camera.h"         // RealsenseF200
+#include "ZEDCamera.h"          // ZED
 #include <OVR_CAPI.h>           // LibOVR
-#include <zed/Camera.hpp>       // ZED SDK
 
 #include "FullscreenQuad.h"
 #include "Shader.h"
@@ -17,7 +17,7 @@ int main(int argc, char** argv)
     try
     {
         if (!glfwInit())
-            return -1;
+            return EXIT_FAILURE;
 
         // Set up the window
         GLFWwindow* window = glfwCreateWindow(640, 480, "Hello World", nullptr, nullptr);
@@ -29,7 +29,7 @@ int main(int argc, char** argv)
         }
         glfwMakeContextCurrent(window);
 
-        // Set up GL3W and load OpenGL extensions
+        // Set up GL
         if (gl3wInit())
         {
             ShowError("Failed to initialise GL3W");
@@ -58,39 +58,31 @@ int main(int argc, char** argv)
             return EXIT_FAILURE;
         }
 
-        // Set up the ZED
-        sl::zed::Camera* zed = new sl::zed::Camera(sl::zed::HD720);
-        int zWidth = zed->getImageSize().width;
-        int zHeight = zed->getImageSize().height;
-        sl::zed::ERRCODE zederror = zed->init(sl::zed::MODE::PERFORMANCE, 0);
-        if (zederror != sl::zed::SUCCESS)
-        {
-            ShowError("ZED camera not detected");
-            ovr_Shutdown();
-            glfwTerminate();
-            return EXIT_FAILURE;
-        }
+        // Set up the cameras
+        ZEDCamera zedCamera;
+        F200Camera f200Camera(640, 480, 60);
 
-        // Generate OpenGL textures for the left and right eyes of the ZED camera
-        GLuint zedTextureL, zedTextureR;
-        glGenTextures(1, &zedTextureL);
-        glBindTexture(GL_TEXTURE_2D, zedTextureL);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, zWidth, zHeight, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
-
-        // Set up the Realsense
-        RealsenseF200 camera(640, 480, 60);
-
+        // Create the fullscreen quad and shader
         FullscreenQuad quad;
         Shader shader("../media/fullscreenquad.vs", "../media/fullscreenquad.fs");
 
         // Main loop
+        bool showRealsense = false;
         while (!glfwWindowShouldClose(window))
         {
             glClear(GL_COLOR_BUFFER_BIT);
 
             // Render
-            camera.bindAndUpdate();
-            glBindTextureUnit(0, camera.getTexture());
+            if (showRealsense)
+            {
+                f200Camera.bindAndUpdate();
+                glBindTextureUnit(0, zedCamera.getTexture());
+            }
+            else
+            {
+                zedCamera.bindAndUpdate();
+                glBindTextureUnit(0, zedCamera.getTexture());
+            }
             shader.bind();
             quad.render();
 

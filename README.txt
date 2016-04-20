@@ -1,10 +1,12 @@
-Rift Augmented Reality
-=============================
+RiftAR
+========================
 
-This project depends on the following libraries to exist in the RiftAugmentedReality/3rdparty directory:
+This project depends on:
 
-    - GLFW 3.1.x (named as glfw)
-    - etc
+    - Oculus SDK 1.3
+    - ZED SDK 0.9
+    - CUDA (dependency of ZED)
+    - OpenCV 2 (dependency of ZED)
 
 Useful:
 

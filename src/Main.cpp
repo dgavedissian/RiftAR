@@ -11,6 +11,14 @@ void ShowError(const std::string& error)
     MessageBoxA(0, error.c_str(), "Error", MB_ICONERROR);
 }
 
+bool showRealsense = false;
+
+void keyFunc(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+        showRealsense = !showRealsense;
+}
+
 // Application entry point
 int main(int argc, char** argv)
 {
@@ -67,7 +75,7 @@ int main(int argc, char** argv)
         Shader shader("../media/fullscreenquad.vs", "../media/fullscreenquad.fs");
 
         // Main loop
-        bool showRealsense = false;
+        glfwSetKeyCallback(window, keyFunc);
         while (!glfwWindowShouldClose(window))
         {
             glClear(GL_COLOR_BUFFER_BIT);
@@ -76,7 +84,7 @@ int main(int argc, char** argv)
             if (showRealsense)
             {
                 f200Camera.bindAndUpdate();
-                glBindTextureUnit(0, zedCamera.getTexture());
+                glBindTextureUnit(0, f200Camera.getTexture());
             }
             else
             {

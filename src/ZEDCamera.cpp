@@ -3,7 +3,7 @@
 
 ZEDCamera::ZEDCamera()
 {
-    mCamera = new sl::zed::Camera(sl::zed::ZEDResolution_mode::VGA, 75.0f);
+    mCamera = new sl::zed::Camera(sl::zed::ZEDResolution_mode::VGA, 100.0f);
     mWidth = mCamera->getImageSize().width;
     mHeight = mCamera->getImageSize().height;
     sl::zed::ERRCODE zederror = mCamera->init(sl::zed::MODE::PERFORMANCE, -1, true);
@@ -18,6 +18,13 @@ ZEDCamera::ZEDCamera()
     TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mWidth, mHeight, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // Set up CUDA graphics resource
+    cudaError_t err = cudaGraphicsGLRegisterImage(&mCudaImage, mTextureID, GL_TEXTURE_2D, cudaGraphicsMapFlagsNone);
+    if (err != cudaSuccess)
+    {
+        throw std::runtime_error("ERROR: cannot create CUDA texture: " + std::to_string(err));
+    }
 }
 
 ZEDCamera::~ZEDCamera()
@@ -29,13 +36,16 @@ void ZEDCamera::bindAndUpdate()
 {
     if (mCamera->grab(sl::zed::SENSING_MODE::RAW, false, false))
     {
-        cout << "Error capturing frame from ZED" << endl;
+        //cout << "Error capturing frame from ZED" << endl;
         return;
         //throw std::runtime_error("Error capturing frame from ZED camera");
     }
 
     // Grab data
-    // TODO: Use a pixel buffer object instead of glTexSubImage2D
-    glBindTexture(GL_TEXTURE_2D, mTextureID);
-    TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_BGRA, GL_UNSIGNED_BYTE, mCamera->retrieveImage(sl::zed::SIDE::LEFT).data));
+    sl::zed::Mat m = mCamera->retrieveImage_gpu(sl::zed::SIDE::LEFT);
+    cudaArray_t arrIm;
+    cudaGraphicsMapResources(1, &mCudaImage, 0);
+    cudaGraphicsSubResourceGetMappedArray(&arrIm, mCudaImage, 0, 0);
+    cudaMemcpy2DToArray(arrIm, 0, 0, m.data, m.step, mWidth * 4, mHeight, cudaMemcpyDeviceToDevice);
+    cudaGraphicsUnmapResources(1, &mCudaImage, 0);
 }

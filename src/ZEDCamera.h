@@ -2,6 +2,10 @@
 
 #include <zed/Camera.hpp>
 
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <cuda_gl_interop.h>
+
 class ZEDCamera
 {
 public:
@@ -13,8 +17,9 @@ public:
     GLuint getTexture() const { return mTextureID; }
 
 private:
-    sl::zed::Camera* mCamera;
     int mWidth;
     int mHeight;
+    sl::zed::Camera* mCamera;
     GLuint mTextureID;
+    cudaGraphicsResource* mCudaImage;
 };

@@ -1,6 +1,7 @@
 #include "Common.h"
 #include "F200Camera.h"         // RealsenseF200
-#include "ZEDCamera.h"          // ZED
+#include "ZEDCamera.h"          // ZED SDK
+#include "CVCamera.h"           // OpenCV camera
 #include <OVR_CAPI.h>           // LibOVR
 
 #include "FullscreenQuad.h"
@@ -67,7 +68,7 @@ int main(int argc, char** argv)
         }
 
         // Set up the cameras
-        ZEDCamera zedCamera;
+        CVCamera zedCamera(4);
         F200Camera f200Camera(640, 480, 60);
 
         // Create the fullscreen quad and shader

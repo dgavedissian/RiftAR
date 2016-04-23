@@ -4,10 +4,10 @@
 #include "CVCamera.h"           // OpenCV camera
 #include <OVR_CAPI.h>           // LibOVR
 
-#include "FullscreenQuad.h"
+#include "Rectangle2D.h"
 #include "Shader.h"
 
-void ShowError(const std::string& error)
+void showError(const std::string& error)
 {
     MessageBoxA(0, error.c_str(), "Error", MB_ICONERROR);
 }
@@ -32,7 +32,7 @@ int main(int argc, char** argv)
         GLFWwindow* window = glfwCreateWindow(640, 480, "Hello World", nullptr, nullptr);
         if (!window)
         {
-            ShowError("Failed to create a window");
+            showError("Failed to create a window");
             glfwTerminate();
             return EXIT_FAILURE;
         }
@@ -41,7 +41,7 @@ int main(int argc, char** argv)
         // Set up GL
         if (gl3wInit())
         {
-            ShowError("Failed to initialise GL3W");
+            showError("Failed to initialise GL3W");
             glfwTerminate();
             return EXIT_FAILURE;
         }
@@ -50,7 +50,7 @@ int main(int argc, char** argv)
         ovrResult result = ovr_Initialize(nullptr);
         if (OVR_FAILURE(result))
         {
-            ShowError("Failed to initialise LibOVR");
+            showError("Failed to initialise LibOVR");
             glfwTerminate();
             return EXIT_FAILURE;
         }
@@ -61,7 +61,7 @@ int main(int argc, char** argv)
         result = ovr_Create(&session, &luid);
         if (OVR_FAILURE(result))
         {
-            ShowError("Oculus Rift not detected");
+            showError("Oculus Rift not detected");
             ovr_Shutdown();
             glfwTerminate();
             return EXIT_FAILURE;
@@ -72,7 +72,7 @@ int main(int argc, char** argv)
         F200Camera f200Camera(640, 480, 60);
 
         // Create the fullscreen quad and shader
-        FullscreenQuad quad;
+        Rectangle2D quad(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
         Shader shader("../media/fullscreenquad.vs", "../media/fullscreenquad.fs");
 
         // Main loop
@@ -107,7 +107,7 @@ int main(int argc, char** argv)
     }
     catch (std::runtime_error& e)
     {
-        ShowError(e.what());
+        showError(e.what());
         return EXIT_FAILURE;
     }
 }

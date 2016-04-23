@@ -48,18 +48,20 @@ set(LIBS ${LIBS} librealsense)
 # Add source files
 set(SRC_FILES
     3rdparty/gl3w.c
-    src/FullscreenQuad.cpp
+    src/Rectangle2D.cpp
     src/Shader.cpp
     # ---------------
     src/Main.cpp
+	src/CVCamera.cpp
     src/F200Camera.cpp
     src/ZEDCamera.cpp)
 set(HDR_FILES
     src/Common.h
-    src/FullscreenQuad.h
+    src/Rectangle2D.h
     src/Shader.h
     # ---------------
-    src/F200Camera.h
+    src/CVCamera.h
+	src/F200Camera.h
     src/ZEDCamera.h)
 
 link_directories(${ZED_LIBRARY_DIR})

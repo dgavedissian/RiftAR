@@ -1,11 +1,11 @@
 #pragma once
 
 // Full screen rectangle. Used for drawing a texture to the backbuffer directly, or for post processing effects.
-class FullscreenQuad
+class Rectangle2D
 {
 public:
-    FullscreenQuad();
-    ~FullscreenQuad();
+    Rectangle2D(const glm::vec2& begin, const glm::vec2& end);
+    ~Rectangle2D();
 
     void render();
 

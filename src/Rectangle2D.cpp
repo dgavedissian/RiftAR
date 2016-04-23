@@ -1,17 +1,17 @@
 #include "Common.h"
-#include "FullscreenQuad.h"
+#include "Rectangle2D.h"
 
-FullscreenQuad::FullscreenQuad() :
+Rectangle2D::Rectangle2D(const glm::vec2& begin, const glm::vec2& end) :
     mVertexArrayObject(0),
     mVertexBufferObject(0),
     mElementBufferObject(0)
 {
     // Declare vertex and index data
     float vertexData[] = {
-        -1.0f, 1.0f,    // top left
-        1.0f, 1.0f,     // top right
-        -1.0f, -1.0f,   // bottom left
-        1.0f, -1.0f     // bottom right
+        begin.x, begin.y,  0.0f, 1.0f,  // top left
+        end.x, begin.y,    1.0f, 1.0f,  // top right
+        begin.x, end.y,    0.0f, 0.0f,  // bottom left
+        end.x, end.y,      1.0f, 0.0f   // bottom right
     };
     GLuint elementData[] = {
         0, 1, 2, 2, 1, 3
@@ -28,7 +28,9 @@ FullscreenQuad::FullscreenQuad() :
 
     // Set up vertex layout
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
     // Set up element buffer
     glGenBuffers(1, &mElementBufferObject);
@@ -36,12 +38,12 @@ FullscreenQuad::FullscreenQuad() :
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elementData), elementData, GL_STATIC_DRAW);
 }
 
-FullscreenQuad::~FullscreenQuad()
+Rectangle2D::~Rectangle2D()
 {
 
 }
 
-void FullscreenQuad::render()
+void Rectangle2D::render()
 {
     glBindVertexArray(mVertexArrayObject);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);

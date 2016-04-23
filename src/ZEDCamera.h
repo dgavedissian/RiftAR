@@ -6,20 +6,19 @@
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 
-class ZEDCamera
+#include "StereoCamera.h"
+
+class ZEDCamera : public StereoCamera
 {
 public:
     ZEDCamera();
     ~ZEDCamera();
 
-    void bindAndUpdate();
-
-    GLuint getTexture() const { return mTextureID; }
+    void retrieve() override;
 
 private:
     int mWidth;
     int mHeight;
     sl::zed::Camera* mCamera;
-    GLuint mTextureID;
-    cudaGraphicsResource* mCudaImage;
+    cudaGraphicsResource* mCudaImage[2];
 };

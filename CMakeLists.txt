@@ -54,6 +54,8 @@ set(SRC_FILES
     src/Main.cpp
 	src/CVCamera.cpp
     src/F200Camera.cpp
+	src/RiftPipeline.cpp
+	src/StereoCamera.cpp
     src/ZEDCamera.cpp)
 set(HDR_FILES
     src/Common.h
@@ -62,6 +64,8 @@ set(HDR_FILES
     # ---------------
     src/CVCamera.h
 	src/F200Camera.h
+	src/RiftPipeline.h
+	src/StereoCamera.h
     src/ZEDCamera.h)
 
 link_directories(${ZED_LIBRARY_DIR})

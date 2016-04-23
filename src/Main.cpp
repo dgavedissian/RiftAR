@@ -2,10 +2,7 @@
 #include "F200Camera.h"         // RealsenseF200
 #include "ZEDCamera.h"          // ZED SDK
 #include "CVCamera.h"           // OpenCV camera
-#include <OVR_CAPI.h>           // LibOVR
-
-#include "Rectangle2D.h"
-#include "Shader.h"
+#include "RiftPipeline.h"
 
 void showError(const std::string& error)
 {
@@ -29,51 +26,21 @@ int main(int argc, char** argv)
             return EXIT_FAILURE;
 
         // Set up the window
-        GLFWwindow* window = glfwCreateWindow(640, 480, "Hello World", nullptr, nullptr);
+        GLFWwindow* window = glfwCreateWindow(1280, 480, "Hello World", nullptr, nullptr);
         if (!window)
-        {
-            showError("Failed to create a window");
-            glfwTerminate();
-            return EXIT_FAILURE;
-        }
+            throw std::runtime_error("Failed to create a window");
         glfwMakeContextCurrent(window);
 
         // Set up GL
         if (gl3wInit())
-        {
-            showError("Failed to initialise GL3W");
-            glfwTerminate();
-            return EXIT_FAILURE;
-        }
+            throw std::runtime_error("Failed to load GL3W");
 
         // Set up OVR
-        ovrResult result = ovr_Initialize(nullptr);
-        if (OVR_FAILURE(result))
-        {
-            showError("Failed to initialise LibOVR");
-            glfwTerminate();
-            return EXIT_FAILURE;
-        }
-
-        // Create a context for the rift device
-        ovrSession session;
-        ovrGraphicsLuid luid;
-        result = ovr_Create(&session, &luid);
-        if (OVR_FAILURE(result))
-        {
-            showError("Oculus Rift not detected");
-            ovr_Shutdown();
-            glfwTerminate();
-            return EXIT_FAILURE;
-        }
+        RiftPipeline pipeline;
 
         // Set up the cameras
-        CVCamera zedCamera(4);
-        F200Camera f200Camera(640, 480, 60);
-
-        // Create the fullscreen quad and shader
-        Rectangle2D quad(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
-        Shader shader("../media/fullscreenquad.vs", "../media/fullscreenquad.fs");
+        ZEDCamera zedCamera;
+        F200Camera rsCamera(640, 480, 60, true);
 
         // Main loop
         glfwSetKeyCallback(window, keyFunc);
@@ -84,24 +51,18 @@ int main(int argc, char** argv)
             // Render
             if (showRealsense)
             {
-                f200Camera.bindAndUpdate();
-                glBindTextureUnit(0, f200Camera.getTexture());
+                pipeline.display(&rsCamera);
             }
             else
             {
-                zedCamera.bindAndUpdate();
-                glBindTextureUnit(0, zedCamera.getTexture());
+                pipeline.display(&zedCamera);
             }
-            shader.bind();
-            quad.render();
 
             // Swap buffers
             glfwSwapBuffers(window);
             glfwPollEvents();
         }
 
-        ovr_Destroy(session);
-        ovr_Shutdown();
         glfwTerminate();
         return EXIT_SUCCESS;
     }

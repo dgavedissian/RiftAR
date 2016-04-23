@@ -1,7 +1,7 @@
 #include "Common.h"
 #include "F200Camera.h"         // RealsenseF200
 #include "ZEDCamera.h"          // ZED SDK
-#include "CVCamera.h"           // OpenCV camera
+#include "ZEDOpenCVCamera.h"    // OpenCV camera
 #include "RiftPipeline.h"
 
 void showError(const std::string& error)
@@ -39,7 +39,7 @@ int main(int argc, char** argv)
         RiftPipeline pipeline;
 
         // Set up the cameras
-        ZEDCamera zedCamera;
+        ZEDOpenCVCamera zedCamera(4);
         F200Camera rsCamera(640, 480, 60, true);
 
         // Main loop

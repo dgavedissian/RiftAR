@@ -26,7 +26,7 @@ int main(int argc, char** argv)
             return EXIT_FAILURE;
 
         // Set up the window
-        GLFWwindow* window = glfwCreateWindow(1280, 480, "Hello World", nullptr, nullptr);
+        GLFWwindow* window = glfwCreateWindow(1280, 480, "RiftAR", nullptr, nullptr);
         if (!window)
             throw std::runtime_error("Failed to create a window");
         glfwMakeContextCurrent(window);
@@ -39,7 +39,8 @@ int main(int argc, char** argv)
         RiftPipeline pipeline;
 
         // Set up the cameras
-        ZEDOpenCVCamera zedCamera(4);
+        ZEDCamera zedCamera;
+        //ZEDOpenCVCamera zedCamera(1);
         F200Camera rsCamera(640, 480, 60, true);
 
         // Main loop

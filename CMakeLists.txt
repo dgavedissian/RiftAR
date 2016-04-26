@@ -52,7 +52,6 @@ set(SRC_FILES
     src/Shader.cpp
     # Application ---------------
     src/Main.cpp
-	src/RiftPipeline.cpp
     # Camera Sources ---------------
     src/F200Camera.cpp
     src/ZEDCamera.cpp
@@ -63,7 +62,6 @@ set(HDR_FILES
     src/Shader.h
     # Application ---------------
 	src/CameraSource.h
-	src/RiftPipeline.h
     # Camera Sources ---------------
 	src/F200Camera.h
     src/ZEDCamera.h

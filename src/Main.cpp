@@ -2,20 +2,107 @@
 #include "F200Camera.h"         // RealsenseF200
 #include "ZEDCamera.h"          // ZED SDK
 #include "ZEDOpenCVCamera.h"    // OpenCV camera
-#include "RiftPipeline.h"
 
-void showError(const std::string& error)
+#include "CameraSource.h"
+#include "Rectangle2D.h"
+#include "Shader.h"
+
+//#define USE_OCULUS
+
+#ifdef USE_OCULUS
+#include <OVR_CAPI.h>
+#endif
+
+class App
 {
-    MessageBoxA(0, error.c_str(), "Error", MB_ICONERROR);
-}
+public:
+    App() { msCurrentApp = this; }
+    virtual ~App() {}
 
-bool showRealsense = false;
+    virtual void render() = 0;
+    virtual void keyEvent(int key, int scancode, int action, int mods) = 0;
 
-void keyFunc(GLFWwindow* window, int key, int scancode, int action, int mods)
+    // C style callback which forwards the event to the application
+    static App* msCurrentApp;
+    static void glfwKeyEvent(GLFWwindow*, int key, int scancode, int action, int mods)
+    {
+        msCurrentApp->keyEvent(key, scancode, action, mods);
+    }
+};
+
+App* App::msCurrentApp = nullptr;
+
+// Rift Viewer
+class RiftView : public App
 {
-    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-        showRealsense = !showRealsense;
-}
+public:
+    RiftView() :
+        showRealsense(false)
+    {
+#ifdef USE_OCULUS
+        ovrResult result = ovr_Initialize(nullptr);
+        if (OVR_FAILURE(result))
+            throw std::runtime_error("Failed to initialise LibOVR");
+
+        // Create a context for the rift device
+        result = ovr_Create(&mSession, &mLuid);
+        if (OVR_FAILURE(result))
+            throw std::runtime_error("Oculus Rift not detected");
+#endif
+
+        zedCamera = new ZEDCamera;
+        rsCamera = new F200CameraColour(640, 480, 60);
+    }
+
+    ~RiftView()
+    {
+        delete zedCamera;
+        delete rsCamera;
+
+#ifdef USE_OCULUS
+        ovr_Destroy(mSession);
+        ovr_Shutdown();
+#endif
+    }
+
+    void render() override
+    {
+#ifdef USE_OCULUS
+        // TODO
+#else
+        static Rectangle2D leftQuad(glm::vec2(0.0f, 0.0f), glm::vec2(0.5f, 1.0f));
+        static Rectangle2D rightQuad(glm::vec2(0.5f, 0.0f), glm::vec2(1.0f, 1.0f));
+        static Shader shader("../media/fullscreenquad.vs", "../media/fullscreenquad.fs");
+
+        CameraSource* source = showRealsense ? (CameraSource*)rsCamera : (CameraSource*)zedCamera;
+
+        shader.bind();
+        source->capture();
+        source->updateTextures();
+        glBindTextureUnit(0, source->getTexture(CameraSource::LEFT));
+        leftQuad.render();
+        glBindTextureUnit(0, source->getTexture(CameraSource::RIGHT));
+        rightQuad.render();
+#endif
+    }
+
+    void keyEvent(int key, int scancode, int action, int mods) override
+    {
+        if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+            showRealsense = !showRealsense;
+    }
+
+private:
+#ifdef USE_OCULUS
+    ovrSession mSession;
+    ovrGraphicsLuid mLuid;
+#endif
+
+    ZEDCamera* zedCamera;
+    F200CameraColour* rsCamera;
+    bool showRealsense;
+
+};
 
 // Application entry point
 int main(int argc, char** argv)
@@ -35,41 +122,31 @@ int main(int argc, char** argv)
         if (gl3wInit())
             throw std::runtime_error("Failed to load GL3W");
 
-        // Set up OVR
-        RiftPipeline pipeline;
-
-        // Set up the cameras
-        ZEDCamera zedCamera;
-        //ZEDOpenCVCamera zedCamera(1);
-        F200CameraColour rsCamera(640, 480, 60);
+        // Set up the application
+        App* app = new RiftView;
 
         // Main loop
-        glfwSetKeyCallback(window, keyFunc);
+        glfwSetKeyCallback(window, App::glfwKeyEvent);
         while (!glfwWindowShouldClose(window))
         {
             glClear(GL_COLOR_BUFFER_BIT);
 
             // Render
-            if (showRealsense)
-            {
-                pipeline.display(&rsCamera);
-            }
-            else
-            {
-                pipeline.display(&zedCamera);
-            }
+            app->render();
 
             // Swap buffers
             glfwSwapBuffers(window);
             glfwPollEvents();
         }
 
+        // Shutdown
+        delete app;
         glfwTerminate();
         return EXIT_SUCCESS;
     }
     catch (std::runtime_error& e)
     {
-        showError(e.what());
+        MessageBoxA(0, e.what(), "Error", MB_ICONERROR);
         return EXIT_FAILURE;
     }
 }

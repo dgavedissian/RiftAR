@@ -47,7 +47,11 @@ void F200CameraColour::copyFrameIntoCudaImage(Eye e, cudaGraphicsResource* resou
 
 void F200CameraColour::copyFrameIntoCVImage(Eye e, cv::Mat* mat)
 {
-    THROW_ERROR("Unimplemented");
+    // Wrap the data in a cv::Mat then copy it. This const_cast is sadly necessary as the
+    // getRawData interface isn't supposed to allow writes to this location of memory.
+    // As we immediately copy the data, it shouldn't matter much here.
+    cv::Mat wrapped(mWidth, mHeight, CV_8UC4, const_cast<void*>(getRawData(e)));
+    cvtColor(wrapped, *mat, cv::COLOR_RGBA2RGB);
 }
 
 const void* F200CameraColour::getRawData(Eye e)

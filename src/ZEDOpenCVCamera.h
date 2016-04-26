@@ -17,8 +17,6 @@ public:
     const void* getRawData(Eye e) override;
 
 private:
-    int mWidth;
-    int mHeight;
     cv::VideoCapture* mCap;
     cv::Mat mFrame[2];
 };

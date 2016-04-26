@@ -44,11 +44,11 @@ public:
         // Create OpenGL images to visualise the calibration
         glGenTextures(2, mTexture);
         glBindTexture(GL_TEXTURE_2D, mTexture[0]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mZedCamera->getWidth(), mZedCamera->getHeight(), 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
+        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mZedCamera->getWidth(), mZedCamera->getHeight(), 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glBindTexture(GL_TEXTURE_2D, mTexture[1]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mRSCamera->getWidth(), mRSCamera->getHeight(), 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
+        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mRSCamera->getWidth(), mRSCamera->getHeight(), 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
@@ -74,11 +74,11 @@ public:
         shader.bind();
         glBindTexture(GL_TEXTURE_2D, mTexture[0]);
         TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mZedCamera->getWidth(), mZedCamera->getHeight(),
-            GL_BGR, GL_UNSIGNED_BYTE, mFrame[0].ptr()));
+            GL_RGB, GL_UNSIGNED_BYTE, mFrame[0].ptr()));
         leftQuad.render();
         glBindTexture(GL_TEXTURE_2D, mTexture[1]);
         TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mRSCamera->getWidth(), mRSCamera->getHeight(),
-            GL_BGR, GL_UNSIGNED_BYTE, mFrame[1].ptr()));
+            GL_RGB, GL_UNSIGNED_BYTE, mFrame[1].ptr()));
         rightQuad.render();
     }
 
@@ -87,8 +87,8 @@ public:
     }
 
 private:
-    ZEDCamera* mZedCamera;
-    F200CameraColour* mRSCamera;
+    CameraSource* mZedCamera;
+    CameraSource* mRSCamera;
 
     GLuint mTexture[2];
     cv::Mat mFrame[2];
@@ -160,8 +160,8 @@ private:
     ovrGraphicsLuid mLuid;
 #endif
 
-    ZEDCamera* mZedCamera;
-    F200CameraDepth* mRSCamera;
+    CameraSource* mZedCamera;
+    CameraSource* mRSCamera;
     bool mShowRealsense;
 
 };

@@ -35,23 +35,37 @@ ZEDCamera::~ZEDCamera()
     delete mCamera;
 }
 
-void ZEDCamera::retrieve()
+void ZEDCamera::capture()
 {
     if (mCamera->grab(sl::zed::SENSING_MODE::RAW, false, false))
     {
         //cout << "Error capturing frame from ZED" << endl;
-        return;
-        //throw std::runtime_error("Error capturing frame from ZED camera");
-    }
-
-    // Grab data
-    for (int eye = LEFT; eye <= RIGHT; eye++)
-    {
-        sl::zed::Mat m = mCamera->retrieveImage_gpu((sl::zed::SIDE)eye);
-        cudaArray_t arrIm;
-        cudaGraphicsMapResources(1, &mCudaImage[eye], 0);
-        cudaGraphicsSubResourceGetMappedArray(&arrIm, mCudaImage[eye], 0, 0);
-        cudaMemcpy2DToArray(arrIm, 0, 0, m.data, m.step, mWidth * 4, mHeight, cudaMemcpyDeviceToDevice);
-        cudaGraphicsUnmapResources(1, &mCudaImage[eye], 0);
     }
 }
+
+void ZEDCamera::updateTextures()
+{
+    copyFrameIntoCudaImage(LEFT, mCudaImage[LEFT]);
+    copyFrameIntoCudaImage(RIGHT, mCudaImage[RIGHT]);
+}
+
+void ZEDCamera::copyFrameIntoCudaImage(Eye e, cudaGraphicsResource* resource)
+{
+    sl::zed::Mat m = mCamera->retrieveImage_gpu((sl::zed::SIDE)e);
+    cudaArray_t arrIm;
+    cudaGraphicsMapResources(1, &mCudaImage[e], 0);
+    cudaGraphicsSubResourceGetMappedArray(&arrIm, mCudaImage[e], 0, 0);
+    cudaMemcpy2DToArray(arrIm, 0, 0, m.data, m.step, mWidth * 4, mHeight, cudaMemcpyDeviceToDevice);
+    cudaGraphicsUnmapResources(1, &mCudaImage[e], 0);
+}
+
+void ZEDCamera::copyFrameIntoCVImage(Eye e, cv::Mat* mat)
+{
+    throw std::runtime_error("Unimplemented!");
+}
+
+const void* ZEDCamera::getRawData(Eye e)
+{
+    return mCamera->retrieveImage((sl::zed::SIDE)e).data;
+}
+

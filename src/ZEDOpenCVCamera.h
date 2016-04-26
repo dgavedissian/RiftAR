@@ -2,18 +2,23 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "StereoCamera.h"
+#include "CameraSource.h"
 
-class ZEDOpenCVCamera : public StereoCamera
+class ZEDOpenCVCamera : public CameraSource
 {
 public:
     ZEDOpenCVCamera(int device);
     ~ZEDOpenCVCamera();
 
-    void retrieve() override;
+    void capture() override;
+    void updateTextures() override;
+    void copyFrameIntoCudaImage(Eye e, cudaGraphicsResource* resource) override;
+    void copyFrameIntoCVImage(Eye e, cv::Mat* mat) override;
+    const void* getRawData(Eye e) override;
 
 private:
     int mWidth;
     int mHeight;
     cv::VideoCapture* mCap;
+    cv::Mat mFrame[2];
 };

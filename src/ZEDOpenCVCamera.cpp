@@ -27,17 +27,34 @@ ZEDOpenCVCamera::~ZEDOpenCVCamera()
     delete mCap;
 }
 
-void ZEDOpenCVCamera::retrieve()
+void ZEDOpenCVCamera::capture()
 {
-    cv::Mat frame, tmp;
-    *mCap >> frame;
+    cv::Mat data;
+    *mCap >> data;
+    data.colRange(0, mWidth).copyTo(mFrame[LEFT]);
+    data.colRange(mWidth, mWidth * 2).copyTo(mFrame[RIGHT]);
+}
 
-    // Copy each subimage into two different GL images
+void ZEDOpenCVCamera::updateTextures()
+{
+    // Copy each sub-image into two different GL images
     glBindTexture(GL_TEXTURE_2D, mTexture[0]);
-    frame.colRange(0, mWidth).copyTo(tmp);
-    TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_BGR, GL_UNSIGNED_BYTE, tmp.ptr()));
-
+    TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_BGR, GL_UNSIGNED_BYTE, getRawData(LEFT)));
     glBindTexture(GL_TEXTURE_2D, mTexture[1]);
-    frame.colRange(mWidth, mWidth * 2).copyTo(tmp);
-    TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_BGR, GL_UNSIGNED_BYTE, tmp.ptr()));
+    TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_BGR, GL_UNSIGNED_BYTE, getRawData(RIGHT)));
+}
+
+void ZEDOpenCVCamera::copyFrameIntoCudaImage(Eye e, cudaGraphicsResource* resource)
+{
+    throw std::runtime_error("Unimplemented");
+}
+
+void ZEDOpenCVCamera::copyFrameIntoCVImage(Eye e, cv::Mat* mat)
+{
+    mFrame[e].copyTo(*mat);
+}
+
+const void* ZEDOpenCVCamera::getRawData(Eye e)
+{
+    return mFrame[e].ptr();
 }

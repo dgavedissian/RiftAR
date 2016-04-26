@@ -2,23 +2,21 @@
 
 #include <zed/Camera.hpp>
 
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <cuda_gl_interop.h>
+#include "CameraSource.h"
 
-#include "StereoCamera.h"
-
-class ZEDCamera : public StereoCamera
+class ZEDCamera : public CameraSource
 {
 public:
     ZEDCamera();
     ~ZEDCamera();
 
-    void retrieve() override;
+    void capture() override;
+    void updateTextures() override;
+    void copyFrameIntoCudaImage(Eye e, cudaGraphicsResource* resource) override;
+    void copyFrameIntoCVImage(Eye e, cv::Mat* mat) override;
+    const void* getRawData(Eye e) override;
 
 private:
-    int mWidth;
-    int mHeight;
     sl::zed::Camera* mCamera;
     cudaGraphicsResource* mCudaImage[2];
 };

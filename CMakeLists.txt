@@ -50,23 +50,24 @@ set(SRC_FILES
     3rdparty/gl3w.c
     src/Rectangle2D.cpp
     src/Shader.cpp
-    # ---------------
+    # Application ---------------
     src/Main.cpp
-    src/F200Camera.cpp
 	src/RiftPipeline.cpp
-	src/StereoCamera.cpp
-	src/ZEDOpenCVCamera.cpp
-    src/ZEDCamera.cpp)
+    # Camera Sources ---------------
+    src/F200Camera.cpp
+    src/ZEDCamera.cpp
+	src/ZEDOpenCVCamera.cpp)
 set(HDR_FILES
     src/Common.h
     src/Rectangle2D.h
     src/Shader.h
-    # ---------------
-	src/F200Camera.h
+    # Application ---------------
+	src/CameraSource.h
 	src/RiftPipeline.h
-	src/StereoCamera.h
-    src/ZEDOpenCVCamera.h
-    src/ZEDCamera.h)
+    # Camera Sources ---------------
+	src/F200Camera.h
+    src/ZEDCamera.h
+    src/ZEDOpenCVCamera.h)
 
 link_directories(${ZED_LIBRARY_DIR})
 add_executable(RiftAR ${SRC_FILES} ${HDR_FILES})

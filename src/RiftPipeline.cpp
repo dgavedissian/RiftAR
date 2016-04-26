@@ -1,7 +1,7 @@
 #include "Common.h"
 #include "RiftPipeline.h"
 
-#include "StereoCamera.h"
+#include "CameraSource.h"
 #include "Rectangle2D.h"
 #include "Shader.h"
 
@@ -29,7 +29,7 @@ RiftPipeline::~RiftPipeline()
 #endif
 }
 
-void RiftPipeline::display(StereoCamera* input)
+void RiftPipeline::display(CameraSource* source)
 {
 #ifdef USE_OCULUS
     // TODO
@@ -39,10 +39,11 @@ void RiftPipeline::display(StereoCamera* input)
     static Shader shader("../media/fullscreenquad.vs", "../media/fullscreenquad.fs");
 
     shader.bind();
-    input->retrieve();
-    glBindTextureUnit(0, input->getTexture(StereoCamera::LEFT));
+    source->capture();
+    source->updateTextures();
+    glBindTextureUnit(0, source->getTexture(CameraSource::LEFT));
     leftQuad.render();
-    glBindTextureUnit(0, input->getTexture(StereoCamera::RIGHT));
+    glBindTextureUnit(0, source->getTexture(CameraSource::RIGHT));
     rightQuad.render();
 #endif
 }

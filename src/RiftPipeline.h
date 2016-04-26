@@ -2,7 +2,7 @@
 
 #include <OVR_CAPI.h>
 
-class StereoCamera;
+class CameraSource;
 
 class RiftPipeline
 {
@@ -10,7 +10,7 @@ public:
     RiftPipeline();
     ~RiftPipeline();
 
-    void display(StereoCamera* input);
+    void display(CameraSource* source);
 
 private:
     ovrSession mSession;

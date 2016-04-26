@@ -41,7 +41,7 @@ int main(int argc, char** argv)
         // Set up the cameras
         ZEDCamera zedCamera;
         //ZEDOpenCVCamera zedCamera(1);
-        F200Camera rsCamera(640, 480, 60, true);
+        F200CameraColour rsCamera(640, 480, 60);
 
         // Main loop
         glfwSetKeyCallback(window, keyFunc);

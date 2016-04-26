@@ -7,9 +7,7 @@ F200CameraColour::F200CameraColour(int width, int height, int frameRate)
     mHeight = height;
     mContext = new rs::context();
     if (mContext->get_device_count() == 0)
-    {
-        throw std::runtime_error("Unable to detect the RealsenseF200");
-    }
+        THROW_ERROR("Unable to detect the RealsenseF200");
 
     mDevice = mContext->get_device(0);
     mDevice->enable_stream(rs::stream::color, width, height, rs::format::rgba8, frameRate);
@@ -44,12 +42,12 @@ void F200CameraColour::updateTextures()
 
 void F200CameraColour::copyFrameIntoCudaImage(Eye e, cudaGraphicsResource* resource)
 {
-    throw std::runtime_error("Unimplemented");
+    THROW_ERROR("Unimplemented");
 }
 
 void F200CameraColour::copyFrameIntoCVImage(Eye e, cv::Mat* mat)
 {
-    throw std::runtime_error("Unimplemented");
+    THROW_ERROR("Unimplemented");
 }
 
 const void* F200CameraColour::getRawData(Eye e)
@@ -63,9 +61,7 @@ F200CameraDepth::F200CameraDepth(int width, int height, int frameRate)
     mHeight = height;
     mContext = new rs::context();
     if (mContext->get_device_count() == 0)
-    {
-        throw std::runtime_error("Unable to detect the RealsenseF200");
-    }
+        THROW_ERROR("Unable to detect the RealsenseF200");
 
     mDevice = mContext->get_device(0);
     mDevice->enable_stream(rs::stream::depth, width, height, rs::format::z16, frameRate);
@@ -100,12 +96,12 @@ void F200CameraDepth::updateTextures()
 
 void F200CameraDepth::copyFrameIntoCudaImage(Eye e, cudaGraphicsResource* resource)
 {
-    throw std::runtime_error("Unimplemented");
+    THROW_ERROR("Unimplemented");
 }
 
 void F200CameraDepth::copyFrameIntoCVImage(Eye e, cv::Mat* mat)
 {
-    throw std::runtime_error("Unimplemented");
+    THROW_ERROR("Unimplemented");
 }
 
 const void* F200CameraDepth::getRawData(Eye e)

@@ -10,7 +10,7 @@ ZEDOpenCVCamera::ZEDOpenCVCamera(int device)
     mWidth = (int)mCap->get(CV_CAP_PROP_FRAME_WIDTH) / 2;
     mHeight = (int)mCap->get(CV_CAP_PROP_FRAME_HEIGHT);
 
-    // Set up image
+    // Set up images
     glGenTextures(2, mTexture);
     glBindTexture(GL_TEXTURE_2D, mTexture[0]);
     TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
@@ -46,7 +46,7 @@ void ZEDOpenCVCamera::updateTextures()
 
 void ZEDOpenCVCamera::copyFrameIntoCudaImage(Eye e, cudaGraphicsResource* resource)
 {
-    throw std::runtime_error("Unimplemented");
+    THROW_ERROR("Unimplemented");
 }
 
 void ZEDOpenCVCamera::copyFrameIntoCVImage(Eye e, cv::Mat* mat)

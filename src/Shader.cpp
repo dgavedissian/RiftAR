@@ -47,7 +47,7 @@ string Shader::readEntireFile(const string& filename)
     {
         std::stringstream err;
         err << "Error: Unable to open file '" << filename << "'" << endl;
-        throw std::runtime_error(err.str());
+        THROW_ERROR(err.str());
     }
 
     return fileData;
@@ -93,10 +93,10 @@ GLuint Shader::compileShader(ShaderType type, const string& sourceFile)
 
         char* errorMessage = new char[infoLogLength];
         glGetShaderInfoLog(id, infoLogLength, NULL, errorMessage);
-        cerr << "Shader Compile Error: " << errorMessage;
+        std::stringstream ss;
+        ss << "Shader Compile Error: " << errorMessage;
         delete[] errorMessage;
-
-        // TODO: Error
+        THROW_ERROR(ss.str());
     }
 
     return id;
@@ -116,8 +116,10 @@ void Shader::link()
         glGetProgramiv(mProgram, GL_INFO_LOG_LENGTH, &infoLogLength);
         char* errorMessage = new char[infoLogLength];
         glGetProgramInfoLog(mProgram, infoLogLength, NULL, errorMessage);
-        cerr << "Shader Link Error:" << errorMessage;
+        std::stringstream ss;
+        ss << "Shader Link Error:" << errorMessage;
         delete[] errorMessage;
+        THROW_ERROR(ss.str());
     }
 }
 

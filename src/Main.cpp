@@ -32,32 +32,94 @@ public:
 
 App* App::msCurrentApp = nullptr;
 
+// Camera Calibration
+class CalibrateCameras : public App
+{
+public:
+    CalibrateCameras()
+    {
+        mZedCamera = new ZEDCamera;
+        mRSCamera = new F200CameraColour(640, 480, 60);
+
+        // Create OpenGL images to visualise the calibration
+        glGenTextures(2, mTexture);
+        glBindTexture(GL_TEXTURE_2D, mTexture[0]);
+        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mZedCamera->getWidth(), mZedCamera->getHeight(), 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glBindTexture(GL_TEXTURE_2D, mTexture[1]);
+        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mRSCamera->getWidth(), mRSCamera->getHeight(), 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+
+    ~CalibrateCameras()
+    {
+        delete mZedCamera;
+        delete mRSCamera;
+    }
+
+    void render() override
+    {
+        // Read the left frame from both cameras
+        mZedCamera->capture();
+        mZedCamera->copyFrameIntoCVImage(CameraSource::LEFT, &mFrame[0]);
+        mRSCamera->capture();
+        mRSCamera->copyFrameIntoCVImage(CameraSource::LEFT, &mFrame[1]);
+
+        // Display them
+        static Rectangle2D leftQuad(glm::vec2(0.0f, 0.0f), glm::vec2(0.5f, 1.0f));
+        static Rectangle2D rightQuad(glm::vec2(0.5f, 0.0f), glm::vec2(1.0f, 1.0f));
+        static Shader shader("../media/fullscreenquad.vs", "../media/fullscreenquad.fs");
+        shader.bind();
+        glBindTexture(GL_TEXTURE_2D, mTexture[0]);
+        TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mZedCamera->getWidth(), mZedCamera->getHeight(),
+            GL_BGR, GL_UNSIGNED_BYTE, mFrame[0].ptr()));
+        leftQuad.render();
+        glBindTexture(GL_TEXTURE_2D, mTexture[1]);
+        TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mRSCamera->getWidth(), mRSCamera->getHeight(),
+            GL_BGR, GL_UNSIGNED_BYTE, mFrame[1].ptr()));
+        rightQuad.render();
+    }
+
+    void keyEvent(int key, int scancode, int action, int mods) override
+    {
+    }
+
+private:
+    ZEDCamera* mZedCamera;
+    F200CameraColour* mRSCamera;
+
+    GLuint mTexture[2];
+    cv::Mat mFrame[2];
+};
+
 // Rift Viewer
 class RiftView : public App
 {
 public:
     RiftView() :
-        showRealsense(false)
+        mShowRealsense(false)
     {
 #ifdef USE_OCULUS
         ovrResult result = ovr_Initialize(nullptr);
         if (OVR_FAILURE(result))
-            throw std::runtime_error("Failed to initialise LibOVR");
+            THROW_ERROR("Failed to initialise LibOVR");
 
         // Create a context for the rift device
         result = ovr_Create(&mSession, &mLuid);
         if (OVR_FAILURE(result))
-            throw std::runtime_error("Oculus Rift not detected");
+            THROW_ERROR("Oculus Rift not detected");
 #endif
 
-        zedCamera = new ZEDCamera;
-        rsCamera = new F200CameraColour(640, 480, 60);
+        mZedCamera = new ZEDCamera;
+        mRSCamera = new F200CameraDepth(640, 480, 60);
     }
 
     ~RiftView()
     {
-        delete zedCamera;
-        delete rsCamera;
+        delete mZedCamera;
+        delete mRSCamera;
 
 #ifdef USE_OCULUS
         ovr_Destroy(mSession);
@@ -74,7 +136,7 @@ public:
         static Rectangle2D rightQuad(glm::vec2(0.5f, 0.0f), glm::vec2(1.0f, 1.0f));
         static Shader shader("../media/fullscreenquad.vs", "../media/fullscreenquad.fs");
 
-        CameraSource* source = showRealsense ? (CameraSource*)rsCamera : (CameraSource*)zedCamera;
+        CameraSource* source = mShowRealsense ? (CameraSource*)mRSCamera : (CameraSource*)mZedCamera;
 
         shader.bind();
         source->capture();
@@ -89,7 +151,7 @@ public:
     void keyEvent(int key, int scancode, int action, int mods) override
     {
         if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-            showRealsense = !showRealsense;
+            mShowRealsense = !mShowRealsense;
     }
 
 private:
@@ -98,9 +160,9 @@ private:
     ovrGraphicsLuid mLuid;
 #endif
 
-    ZEDCamera* zedCamera;
-    F200CameraColour* rsCamera;
-    bool showRealsense;
+    ZEDCamera* mZedCamera;
+    F200CameraDepth* mRSCamera;
+    bool mShowRealsense;
 
 };
 
@@ -115,15 +177,15 @@ int main(int argc, char** argv)
         // Set up the window
         GLFWwindow* window = glfwCreateWindow(1280, 480, "RiftAR", nullptr, nullptr);
         if (!window)
-            throw std::runtime_error("Failed to create a window");
+            THROW_ERROR("Failed to create a window");
         glfwMakeContextCurrent(window);
 
         // Set up GL
         if (gl3wInit())
-            throw std::runtime_error("Failed to load GL3W");
+            THROW_ERROR("Failed to load GL3W");
 
         // Set up the application
-        App* app = new RiftView;
+        App* app = new CalibrateCameras;
 
         // Main loop
         glfwSetKeyCallback(window, App::glfwKeyEvent);

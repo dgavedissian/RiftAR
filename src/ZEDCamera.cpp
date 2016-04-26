@@ -8,9 +8,7 @@ ZEDCamera::ZEDCamera()
     mHeight = mCamera->getImageSize().height;
     sl::zed::ERRCODE zederror = mCamera->init(sl::zed::MODE::PERFORMANCE, -1, true);
     if (zederror != sl::zed::SUCCESS)
-    {
-        throw std::runtime_error("ZED camera not detected");
-    }
+        THROW_ERROR("ZED camera not detected");
 
     // Set up resources for each eye
     for (int eye = LEFT; eye <= RIGHT; eye++)
@@ -24,9 +22,7 @@ ZEDCamera::ZEDCamera()
         // Set up CUDA graphics resource
         cudaError_t err = cudaGraphicsGLRegisterImage(&mCudaImage[eye], mTexture[eye], GL_TEXTURE_2D, cudaGraphicsMapFlagsNone);
         if (err != cudaSuccess)
-        {
-            throw std::runtime_error("ERROR: cannot create CUDA texture: " + std::to_string(err));
-        }
+            THROW_ERROR("ERROR: cannot create CUDA texture: " + std::to_string(err));
     }
 }
 
@@ -61,7 +57,7 @@ void ZEDCamera::copyFrameIntoCudaImage(Eye e, cudaGraphicsResource* resource)
 
 void ZEDCamera::copyFrameIntoCVImage(Eye e, cv::Mat* mat)
 {
-    throw std::runtime_error("Unimplemented!");
+    THROW_ERROR("Unimplemented!");
 }
 
 const void* ZEDCamera::getRawData(Eye e)

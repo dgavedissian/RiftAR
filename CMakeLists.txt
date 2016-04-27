@@ -10,7 +10,7 @@ set(OVR_SDK_ROOT ${THIRD_PARTY_DIR}/OculusSDK)
 find_package(OpenGL)
 find_package(OVR)
 find_package(CUDA 7.5 REQUIRED)
-find_package(OpenCV 2.4 COMPONENTS core highgui imgproc REQUIRED)
+find_package(OpenCV 2.4 COMPONENTS core highgui imgproc calib3d REQUIRED)
 
 set(ZED_INCLUDE_DIRS $ENV{ZED_INCLUDE_DIRS})
 set(ZED_LIBRARY_DIR $ENV{ZED_LIBRARY_DIR})

@@ -67,6 +67,16 @@ public:
         mRSCamera->capture();
         mRSCamera->copyFrameIntoCVImage(CameraSource::LEFT, &mFrame[1]);
 
+        // Find chessboard corners
+        cv::Mat greyscale;
+        cvtColor(mFrame[0], greyscale, cv::COLOR_BGR2GRAY);
+        cv::Size boardSize(9, 6);
+        static std::vector<cv::Point2f> corners;
+        bool valid = findChessboardCorners(greyscale, boardSize, corners, cv::CALIB_CB_ADAPTIVE_THRESH + cv::CALIB_CB_NORMALIZE_IMAGE + cv::CALIB_CB_FAST_CHECK);
+        if (valid)
+            cout << "Found some chessboard corners!" << endl;
+        drawChessboardCorners(mFrame[0], boardSize, cv::Mat(corners), valid);
+
         // Display them
         static Rectangle2D leftQuad(glm::vec2(0.0f, 0.0f), glm::vec2(0.5f, 1.0f));
         static Rectangle2D rightQuad(glm::vec2(0.5f, 0.0f), glm::vec2(1.0f, 1.0f));

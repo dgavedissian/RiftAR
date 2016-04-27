@@ -13,11 +13,11 @@ ZEDOpenCVCamera::ZEDOpenCVCamera(int device)
     // Set up images
     glGenTextures(2, mTexture);
     glBindTexture(GL_TEXTURE_2D, mTexture[0]);
-    TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr));
+    TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glBindTexture(GL_TEXTURE_2D, mTexture[1]);
-    TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr));
+    TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
@@ -31,17 +31,17 @@ void ZEDOpenCVCamera::capture()
 {
     cv::Mat data;
     *mCap >> data;
-    cvtColor(data.colRange(0, mWidth), mFrame[LEFT], CV_BGR2RGB);
-    cvtColor(data.colRange(mWidth, mWidth * 2), mFrame[RIGHT], CV_BGR2RGB);;
+    data.colRange(0, mWidth).copyTo(mFrame[LEFT]);
+    data.colRange(mWidth, mWidth * 2).copyTo(mFrame[RIGHT]);
 }
 
 void ZEDOpenCVCamera::updateTextures()
 {
     // Copy each sub-image into two different GL images
     glBindTexture(GL_TEXTURE_2D, mTexture[0]);
-    TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_RGB, GL_UNSIGNED_BYTE, getRawData(LEFT)));
+    TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_BGR, GL_UNSIGNED_BYTE, getRawData(LEFT)));
     glBindTexture(GL_TEXTURE_2D, mTexture[1]);
-    TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_RGB, GL_UNSIGNED_BYTE, getRawData(RIGHT)));
+    TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_BGR, GL_UNSIGNED_BYTE, getRawData(RIGHT)));
 }
 
 void ZEDOpenCVCamera::copyFrameIntoCudaImage(Eye e, cudaGraphicsResource* resource)

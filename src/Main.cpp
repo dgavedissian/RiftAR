@@ -38,17 +38,17 @@ class CalibrateCameras : public App
 public:
     CalibrateCameras()
     {
-        mZedCamera = new ZEDCamera;
+        mZedCamera = new ZEDCamera();
         mRSCamera = new F200CameraColour(640, 480, 60);
 
         // Create OpenGL images to visualise the calibration
         glGenTextures(2, mTexture);
         glBindTexture(GL_TEXTURE_2D, mTexture[0]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mZedCamera->getWidth(), mZedCamera->getHeight(), 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr));
+        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mZedCamera->getWidth(), mZedCamera->getHeight(), 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glBindTexture(GL_TEXTURE_2D, mTexture[1]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mRSCamera->getWidth(), mRSCamera->getHeight(), 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr));
+        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mRSCamera->getWidth(), mRSCamera->getHeight(), 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
@@ -74,11 +74,11 @@ public:
         shader.bind();
         glBindTexture(GL_TEXTURE_2D, mTexture[0]);
         TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mZedCamera->getWidth(), mZedCamera->getHeight(),
-            GL_RGB, GL_UNSIGNED_BYTE, mFrame[0].ptr()));
+            GL_BGR, GL_UNSIGNED_BYTE, mFrame[0].ptr()));
         leftQuad.render();
         glBindTexture(GL_TEXTURE_2D, mTexture[1]);
         TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mRSCamera->getWidth(), mRSCamera->getHeight(),
-            GL_RGB, GL_UNSIGNED_BYTE, mFrame[1].ptr()));
+            GL_BGR, GL_UNSIGNED_BYTE, mFrame[1].ptr()));
         rightQuad.render();
     }
 

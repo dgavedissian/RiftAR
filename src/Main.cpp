@@ -39,7 +39,8 @@ public:
     CalibrateCameras()
     {
         mZedCamera = new ZEDCamera();
-        mRSCamera = new F200CameraColour(640, 480, 60);
+        mRSCamera = new F200Camera(640, 480, 60, F200Camera::COLOUR);
+        mRSCamera->setStream(F200Camera::COLOUR);
 
         // Create OpenGL images to visualise the calibration
         glGenTextures(2, mTexture);
@@ -97,8 +98,8 @@ public:
     }
 
 private:
-    CameraSource* mZedCamera;
-    CameraSource* mRSCamera;
+    ZEDCamera* mZedCamera;
+    F200Camera* mRSCamera;
 
     GLuint mTexture[2];
     cv::Mat mFrame[2];
@@ -122,8 +123,9 @@ public:
             THROW_ERROR("Oculus Rift not detected");
 #endif
 
-        mZedCamera = new ZEDCamera;
-        mRSCamera = new F200CameraDepth(640, 480, 60);
+        mZedCamera = new ZEDCamera();
+        mRSCamera = new F200Camera(640, 480, 60, F200Camera::COLOUR | F200Camera::DEPTH);
+        mRSCamera->setStream(F200Camera::DEPTH);
     }
 
     ~RiftView()
@@ -146,7 +148,9 @@ public:
         static Rectangle2D rightQuad(glm::vec2(0.5f, 0.0f), glm::vec2(1.0f, 1.0f));
         static Shader shader("../media/fullscreenquad.vs", "../media/fullscreenquad.fs");
 
-        CameraSource* source = mShowRealsense ? (CameraSource*)mRSCamera : (CameraSource*)mZedCamera;
+        //CameraSource* source = mShowRealsense ? (CameraSource*)mRSCamera : (CameraSource*)mZedCamera;
+        CameraSource* source = mRSCamera;
+        mRSCamera->setStream(mShowRealsense ? F200Camera::COLOUR : F200Camera::DEPTH);
 
         shader.bind();
         source->capture();
@@ -170,8 +174,8 @@ private:
     ovrGraphicsLuid mLuid;
 #endif
 
-    CameraSource* mZedCamera;
-    CameraSource* mRSCamera;
+    ZEDCamera* mZedCamera;
+    F200Camera* mRSCamera;
     bool mShowRealsense;
 
 };
@@ -195,7 +199,7 @@ int main(int argc, char** argv)
             THROW_ERROR("Failed to load GL3W");
 
         // Set up the application
-        App* app = new CalibrateCameras;
+        App* app = new RiftView;
 
         // Main loop
         glfwSetKeyCallback(window, App::glfwKeyEvent);

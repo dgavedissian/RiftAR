@@ -29,9 +29,13 @@ public:
     int getWidth() const { return mWidth; }
     int getHeight() const { return mHeight; }
     GLuint getTexture(Eye e) const { return mTexture[e]; }
+    cv::Mat& getCaneraMatrix() { return mCameraMatrix; }
+    std::vector<float>& getDistCoeffs() { return mDistCoeffs; }
 
 protected:
     int mWidth, mHeight;
     GLuint mTexture[2];
+    cv::Mat mCameraMatrix;
+    std::vector<float> mDistCoeffs;
 
 };

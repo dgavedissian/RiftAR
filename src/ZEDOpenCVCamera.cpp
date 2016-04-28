@@ -9,6 +9,7 @@ ZEDOpenCVCamera::ZEDOpenCVCamera(int device)
 
     mWidth = (int)mCap->get(CV_CAP_PROP_FRAME_WIDTH) / 2;
     mHeight = (int)mCap->get(CV_CAP_PROP_FRAME_HEIGHT);
+    mCameraMatrix = cv::Mat::eye(3, 3, CV_64F);
 
     // Set up images
     glGenTextures(2, mTexture);

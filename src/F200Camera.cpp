@@ -20,6 +20,15 @@ F200Camera::F200Camera(int width, int height, int frameRate, int stream)
         mDevice->enable_stream(rs::stream::infrared2, width, height, rs::format::y8, frameRate);
     mDevice->start();
 
+    // Get intrinsic parameters
+    rs::intrinsics& intr = mDevice->get_stream_intrinsics(rs::stream::color);
+    mCameraMatrix = cv::Mat::eye(3, 3, CV_64F);
+    mCameraMatrix.at<double>(0, 0) = intr.fx;
+    mCameraMatrix.at<double>(1, 1) = intr.fy;
+    mCameraMatrix.at<double>(0, 2) = intr.ppx;
+    mCameraMatrix.at<double>(1, 2) = intr.ppx;
+    mDistCoeffs.insert(mDistCoeffs.end(), intr.coeffs, intr.coeffs + 5);
+
     // Set up image
     if (stream & COLOUR)
     {

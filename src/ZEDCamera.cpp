@@ -10,6 +10,17 @@ ZEDCamera::ZEDCamera()
     if (zederror != sl::zed::SUCCESS)
         THROW_ERROR("ZED camera not detected");
 
+    // Get intrinsics for left camera
+    // From testing, the intrinsics for the left and right cameras were identical
+    sl::zed::StereoParameters* params = mCamera->getParameters();
+    sl::zed::CamParameters& left = params->LeftCam;
+    mCameraMatrix = cv::Mat::eye(3, 3, CV_64F);
+    mCameraMatrix.at<double>(0, 0) = left.fx;
+    mCameraMatrix.at<double>(1, 1) = left.fy;
+    mCameraMatrix.at<double>(0, 2) = left.cx;
+    mCameraMatrix.at<double>(1, 2) = left.cy;
+    mDistCoeffs.insert(mDistCoeffs.end(), left.disto, left.disto + 5);
+
     // Set up resources for each eye
     for (int eye = LEFT; eye <= RIGHT; eye++)
     {

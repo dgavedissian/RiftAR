@@ -143,17 +143,17 @@ void F200Camera::copyFrameIntoCVImage(Eye e, cv::Mat* mat)
     // As we immediately copy the data, it shouldn't matter much here.
     if (mCurrentStream == COLOUR)
     {
-        cv::Mat wrapped(mWidth, mHeight, CV_8UC4, const_cast<void*>(getRawData(e)));
+        cv::Mat wrapped(mHeight, mWidth, CV_8UC4, const_cast<void*>(getRawData(e)));
         cvtColor(wrapped, *mat, cv::COLOR_RGBA2BGR);
     }
     else if (mCurrentStream == DEPTH)
     {
-        cv::Mat wrapped(mWidth, mHeight, CV_16UC1, const_cast<void*>(getRawData(e)));
+        cv::Mat wrapped(mHeight, mWidth, CV_16UC1, const_cast<void*>(getRawData(e)));
         wrapped.copyTo(*mat);
     }
     else
     {
-        cv::Mat wrapped(mWidth, mHeight, CV_8UC1, const_cast<void*>(getRawData(e)));
+        cv::Mat wrapped(mHeight, mWidth, CV_8UC1, const_cast<void*>(getRawData(e)));
         wrapped.copyTo(*mat);
     }
 }

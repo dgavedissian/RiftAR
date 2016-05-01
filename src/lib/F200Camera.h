@@ -26,6 +26,8 @@ public:
     void copyFrameIntoCVImage(Eye e, cv::Mat* mat) override;
     const void* getRawData(Eye e) override;
 
+    float getDepthScale() { return mDevice->get_depth_scale(); }
+
 private:
     Stream mCurrentStream;
     rs::context* mContext;

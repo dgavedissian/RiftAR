@@ -10,7 +10,7 @@ F200Camera::F200Camera(int width, int height, int frameRate, int stream)
         THROW_ERROR("Unable to detect the RealsenseF200");
 
     mDevice = mContext->get_device(0);
-    if (stream & COLOUR)
+    if (stream & COLOUR || stream & DEPTH)
         mDevice->enable_stream(rs::stream::color, width, height, rs::format::rgba8, frameRate);
     if (stream & DEPTH)
         mDevice->enable_stream(rs::stream::depth, width, height, rs::format::z16, frameRate);
@@ -21,7 +21,7 @@ F200Camera::F200Camera(int width, int height, int frameRate, int stream)
     mDevice->start();
 
     // Get intrinsic parameters
-    if (stream & COLOUR)
+    if (stream & COLOUR || stream & DEPTH)
     {
         rs::intrinsics& intr = mDevice->get_stream_intrinsics(rs::stream::color);
         mCameraMatrix = cv::Mat::eye(3, 3, CV_64F);
@@ -120,14 +120,17 @@ void F200Camera::updateTextures()
     case DEPTH:
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[1]);
         TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_RED, GL_UNSIGNED_SHORT, getRawData(LEFT)));
+        break;
 
     case INFRARED:
-        glBindTexture(GL_TEXTURE_2D, mStreamTextures[1]);
+        glBindTexture(GL_TEXTURE_2D, mStreamTextures[2]);
         TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_RED, GL_UNSIGNED_SHORT, getRawData(LEFT)));
+        break;
 
     case INFRARED2:
-        glBindTexture(GL_TEXTURE_2D, mStreamTextures[1]);
+        glBindTexture(GL_TEXTURE_2D, mStreamTextures[3]);
         TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_RED, GL_UNSIGNED_SHORT, getRawData(LEFT)));
+        break;
 
     default:
         break;

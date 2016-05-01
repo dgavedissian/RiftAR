@@ -45,35 +45,37 @@ add_subdirectory(3rdparty/librealsense)
 set(INCLUDE_DIRS ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/3rdparty/librealsense/include)
 set(LIBS ${LIBS} librealsense)
 
+# Common library
+set(SRC_FILES
+    3rdparty/gl3w.c
+    src/lib/Main.cpp
+    # GL helper objects ---------------
+    src/lib/Rectangle2D.cpp
+    src/lib/Shader.cpp
+    # Cameras ---------------
+    src/lib/F200Camera.cpp
+    src/lib/ZEDCamera.cpp
+    src/lib/ZEDOpenCVCamera.cpp)
+set(HDR_FILES
+    src/lib/App.h
+    src/lib/Common.h
+    # GL helper objects ---------------
+    src/lib/Rectangle2D.h
+    src/lib/Shader.h
+    # Cameras ---------------
+    src/lib/CameraSource.h
+    src/lib/F200Camera.h
+    src/lib/ZEDCamera.h
+    src/lib/ZEDOpenCVCamera.h)
+link_directories(${ZED_LIBRARY_DIR})
+add_library(Common STATIC ${SRC_FILES} ${HDR_FILES})
+target_include_directories(Common PUBLIC ${INCLUDE_DIRS})
+target_link_libraries(Common ${LIBS})
+
 # Add a new application
 function(add_app NAME SRC)
-    set(SRC_FILES
-        ${SRC}
-        3rdparty/gl3w.c
-        src/Main.cpp
-        # GL helper objects ---------------
-        src/Rectangle2D.cpp
-        src/Shader.cpp
-        # Camera ---------------
-        src/F200Camera.cpp
-        src/ZEDCamera.cpp
-        src/ZEDOpenCVCamera.cpp)
-    set(HDR_FILES
-        src/App.h
-        src/Common.h
-        # GL helper objects ---------------
-        src/Rectangle2D.h
-        src/Shader.h
-        # Camera ---------------
-        src/CameraSource.h
-        src/F200Camera.h
-        src/ZEDCamera.h
-        src/ZEDOpenCVCamera.h)
-
-    link_directories(${ZED_LIBRARY_DIR})
-    add_executable(${NAME} ${SRC_FILES} ${HDR_FILES})
-    target_include_directories(${NAME} PRIVATE ${INCLUDE_DIRS})
-    target_link_libraries(${NAME} ${LIBS})
+    add_executable(${NAME} ${SRC})
+    target_link_libraries(${NAME} Common)
 endfunction()
 
 # RiftAR

@@ -1,9 +1,8 @@
-#include "Common.h"
-#include "F200Camera.h"
-#include "ZEDCamera.h"
-
-#include "Rectangle2D.h"
-#include "Shader.h"
+#include "lib/Common.h"
+#include "lib/F200Camera.h"
+#include "lib/ZEDCamera.h"
+#include "lib/Rectangle2D.h"
+#include "lib/Shader.h"
 
 class StereoCalibrate : public App
 {

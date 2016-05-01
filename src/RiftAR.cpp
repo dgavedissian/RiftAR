@@ -1,9 +1,9 @@
-#include "Common.h"
-#include "F200Camera.h"
-#include "ZEDCamera.h"
+#include "lib/Common.h"
+#include "lib/F200Camera.h"
+#include "lib/ZEDCamera.h"
 
-#include "Rectangle2D.h"
-#include "Shader.h"
+#include "lib/Rectangle2D.h"
+#include "lib/Shader.h"
 
 #include <OVR_CAPI.h>
 #include <OVR_CAPI_GL.h>
@@ -211,4 +211,4 @@ private:
 
 };
 
-DEFINE_MAIN(RiftAR)
+DEFINE_MAIN(RiftAR);

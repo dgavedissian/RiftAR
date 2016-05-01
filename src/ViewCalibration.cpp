@@ -1,6 +1,6 @@
-#include "Common.h"
-#include "F200Camera.h"
-#include "ZEDCamera.h"
+#include "lib/Common.h"
+#include "lib/F200Camera.h"
+#include "lib/ZEDCamera.h"
 
 class ViewCalibration : public App
 {
@@ -58,4 +58,4 @@ private:
     cv::Mat mFrame[2];
 };
 
-DEFINE_MAIN(ViewCalibration)
+DEFINE_MAIN(ViewCalibration)l

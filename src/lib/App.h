@@ -20,12 +20,4 @@ public:
 int runApp(int argc, char** argv, App* app);
 
 // A handy macro used to define a main function which executes an implementation C of the App class
-#define __DEFINE_MAIN(C) int main(int argc, char** argv) { return runApp(argc, argv, new C); }
-#ifndef _WIN32
-#   define DEFINE_MAIN(C) __DEFINE_MAIN(C)
-#else
-// Windows subsystem entry point
-// If the CONSOLE subsystem is chosen in the VS property pages, this function will just be ignored
-// completely and main() will be used instead.
-#   define DEFINE_MAIN(C) __DEFINE_MAIN(C) int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) { return main(__argc, __argv); }
-#endif
+#define DEFINE_MAIN(C) int main(int argc, char** argv) { return runApp(argc, argv, new C); }

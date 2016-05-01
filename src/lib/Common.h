@@ -8,14 +8,6 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
-// Windows Headers
-#ifdef _WIN32
-#define NOMINMAX                // Stop Windows.h from defining annoying min/max macros
-#define WIN32_LEAN_AND_MEAN     // Strip out some unneded stuff from Windows.h
-#include <Windows.h>            // WinMain function
-#include <cstdlib>              // __argc and __argv
-#endif
-
 // GL and GLFW
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>

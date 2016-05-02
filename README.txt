@@ -13,3 +13,4 @@ Useful:
 	- https://github.com/IntelRealSense/librealsense
 	- https://github.com/stereolabs/zed-oculus
     - https://github.com/IntelRealSense/librealsense/blob/master/doc/projection.md#extrinsic-camera-parameters
+    - image.cpp:332 - align_images in librealsense

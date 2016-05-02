@@ -16,7 +16,12 @@ public:
     void copyFrameIntoCVImage(Eye e, cv::Mat* mat) override;
     const void* getRawData(Eye e) override;
 
+    double getBaseline() { return mBaseline; }
+    double getConvergence() { return mConvergence; }
+
 private:
     sl::zed::Camera* mCamera;
     cudaGraphicsResource* mCudaImage[2];
+
+    double mBaseline, mConvergence;
 };

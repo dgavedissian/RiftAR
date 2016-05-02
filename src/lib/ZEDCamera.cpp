@@ -21,6 +21,10 @@ ZEDCamera::ZEDCamera()
     mCameraMatrix.at<double>(1, 2) = left.cy;
     mDistCoeffs.insert(mDistCoeffs.end(), left.disto, left.disto + 5);
 
+    // Get extrinsics for right camera
+    mBaseline = params->baseline * 1e-3;
+    mConvergence = params->convergence;
+
     // Set up resources for each eye
     for (int eye = LEFT; eye <= RIGHT; eye++)
     {

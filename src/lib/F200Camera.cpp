@@ -23,7 +23,7 @@ F200Camera::F200Camera(int width, int height, int frameRate, int stream)
     // Get intrinsic parameters
     if (stream & COLOUR || stream & DEPTH)
     {
-        rs::intrinsics& intr = mDevice->get_stream_intrinsics(rs::stream::color);
+        rs::intrinsics& intr = mDevice->get_stream_intrinsics(rs::stream::depth);
         mCameraMatrix = cv::Mat::eye(3, 3, CV_64F);
         mCameraMatrix.at<double>(0, 0) = intr.fx;
         mCameraMatrix.at<double>(1, 1) = intr.fy;
@@ -31,6 +31,20 @@ F200Camera::F200Camera(int width, int height, int frameRate, int stream)
         mCameraMatrix.at<double>(1, 2) = intr.ppx;
         mDistCoeffs.insert(mDistCoeffs.end(), intr.coeffs, intr.coeffs + 5);
     }
+
+    // Get extrinsics from depth to colour
+    rs::extrinsics& extr = mDevice->get_extrinsics(rs::stream::depth, rs::stream::color);
+    mRotateDToC = cv::Mat(3, 3, CV_32F);
+    for (int row = 0; row < 3; row++)
+    {
+        for (int col = 0; col < 3; col++)
+        {
+            mRotateDToC.at<float>(row, col) = extr.rotation[col * 3 + row];
+        }
+    }
+    mTranslateDToC(0) = extr.translation[0];
+    mTranslateDToC(1) = extr.translation[1];
+    mTranslateDToC(2) = extr.translation[2];
 
     // Set up image
     if (stream & COLOUR)
@@ -172,7 +186,7 @@ const void* F200Camera::getRawData(Eye e)
         return mDevice->get_frame_data(rs::stream::color);
 
     case DEPTH:
-        return mDevice->get_frame_data(rs::stream::depth_aligned_to_color);
+        return mDevice->get_frame_data(rs::stream::depth);
 
     case INFRARED:
         return mDevice->get_frame_data(rs::stream::infrared);

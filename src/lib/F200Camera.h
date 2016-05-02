@@ -27,6 +27,8 @@ public:
     const void* getRawData(Eye e) override;
 
     float getDepthScale() { return mDevice->get_depth_scale(); }
+    cv::Mat& getRotationDepthToColour() { return mRotateDToC; }
+    cv::Vec3f& getTranslationDepthToColour() { return mTranslateDToC; }
 
 private:
     Stream mCurrentStream;
@@ -34,4 +36,7 @@ private:
     rs::device* mDevice;
 
     GLuint mStreamTextures[4]; // one for each stream
+
+    cv::Mat mRotateDToC;
+    cv::Vec3f mTranslateDToC;
 };

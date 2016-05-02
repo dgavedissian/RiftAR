@@ -4,18 +4,32 @@
 #include "lib/Rectangle2D.h"
 #include "lib/Shader.h"
 
+#include <opencv2/imgproc/imgproc.hpp>
+
 template <class T>
 glm::mat3 convertCVToMat3(cv::Mat& m)
 {
+    // GLM is column major but OpenCV is row major
     glm::mat3 out;
     for (int i = 0; i < 3; i++)
     {
         for (int j = 0; j < 3; j++)
         {
-            out[j][i] = m.at<T>(i, j);
+            out[j][i] = (float)m.at<T>(i, j);
         }
     }
     return out;
+}
+
+template <class T>
+glm::vec3 convertCVToVec3(cv::Mat& v)
+{
+    return glm::vec3((float)v.at<T>(0), (float)v.at<T>(1), (float)v.at<T>(2));
+}
+
+glm::vec3 convertCVToVec3(cv::Vec3f& v)
+{
+    return glm::make_vec3(v.val);
 }
 
 class ViewCalibration : public App
@@ -32,25 +46,10 @@ public:
         mRSCamera = new F200Camera(640, 480, 60, F200Camera::DEPTH);
         mRSCamera->setStream(F200Camera::DEPTH);
 
-        // Create OpenGL images to view the colour stream
-        glGenTextures(2, mColour);
-        glBindTexture(GL_TEXTURE_2D, mColour[0]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mZedCamera->getWidth(), mZedCamera->getHeight(), 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glBindTexture(GL_TEXTURE_2D, mColour[1]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mZedCamera->getWidth(), mZedCamera->getHeight(), 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
         // Create OpenGL images to view the depth stream
         glGenTextures(2, mDepth);
         glBindTexture(GL_TEXTURE_2D, mDepth[0]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, mRSCamera->getWidth(), mRSCamera->getHeight(), 0, GL_RED, GL_UNSIGNED_SHORT, nullptr));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glBindTexture(GL_TEXTURE_2D, mDepth[1]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, mRSCamera->getWidth(), mRSCamera->getHeight(), 0, GL_RED, GL_UNSIGNED_SHORT, nullptr));
+        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, mRSCamera->getWidth(), mRSCamera->getHeight(), 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -80,67 +79,89 @@ public:
 
     void render() override
     {
-        cv::Mat frame, tmp;
-        mZedCamera->capture();
-        mRSCamera->capture();
+        cv::Mat frame, transformedDepth;
 
-        // Capture from chosen camera
-        CameraSource* source = mShowColour ? (CameraSource*)mZedCamera : mRSCamera;
+        // Capture from cameras
+        mZedCamera->capture();
+        mZedCamera->updateTextures();
+        mRSCamera->capture();
 
         // Display eyes
         mShader->bind();
         for (int i = 0; i < 2; i++)
         {
-            // Capture frame
-            source->copyFrameIntoCVImage((CameraSource::Eye)i, &frame);
+            mRSCamera->copyFrameIntoCVImage((CameraSource::Eye)i, &frame);
 
-            // Transform to be relative to the ZED
-            if (!mShowColour)
+            // Create the output depth frame
+            transformedDepth = cv::Mat::zeros(cv::Size(frame.cols, frame.rows), CV_16UC1);
+            for (int c = 0; c < frame.cols; c++)
             {
-                tmp = cv::Mat::zeros(cv::Size(frame.cols, frame.rows), CV_16UC1);
-                glm::mat3 rsCalib = convertCVToMat3<double>(mRSCamera->getCameraMatrix());
-                glm::mat3 invRSCalib = glm::inverse(rsCalib);
-                glm::mat3 rotation = convertCVToMat3<double>(mR);
-                glm::vec3 translation(mT.at<double>(0), mT.at<double>(1), mT.at<double>(2));
-                glm::mat3 zedCalib = convertCVToMat3<double>(mZedCamera->getCameraMatrix());
-                /*
-                cout << glm::to_string(rsCalib) << endl;
-                cout << glm::to_string(invRSCalib) << endl;
-                cout << glm::to_string(zedCalib) << endl;
-                */
-                // TODO: Instead of using depth_aligned_to_color, make use of the depth->colour extrinsic parameters from librealsense
-                // TODO: Clean this code up
-                for (int row = 0; row < frame.rows; row++)
+                for (int r = 0; r < frame.rows; r++)
                 {
-                    for (int col = 0; col < frame.cols; col++)
-                    {
-                        glm::vec3 point((float)col, (float)row, 1.0);
-                        float depth = (float)frame.at<unsigned short>(row, col) * mRSCamera->getDepthScale();
-                        point = (invRSCalib * point) * depth;
-                        point = glm::inverse(rotation) * point;
-                        point -= translation;
-                        depth = point.z;
-                        point.x /= depth;
-                        point.y /= depth;
-                        point.z = 1.0;
-                        point = zedCalib * point;
-                        if (point.x >= 0.0 && point.x <= frame.cols && point.y >= 0.0 && point.y <= frame.rows)
-                            tmp.at<unsigned short>((int)point.y, (int)point.x) = (unsigned short)(depth / mRSCamera->getDepthScale());
-                    }
+                    transformedDepth.at<unsigned short>(r, c) = 0xffff;
                 }
-                tmp.copyTo(frame);
+            }
+
+            // Read parameters
+            glm::mat3 invRSCalib = glm::inverse(convertCVToMat3<double>(mRSCamera->getCameraMatrix()));
+            glm::mat3 zedCalib = convertCVToMat3<double>(mZedCamera->getCameraMatrix());
+
+            // Extrinsics to map from depth to colour in the F200
+            glm::mat3 rotateDepthToColour = convertCVToMat3<float>(mRSCamera->getRotationDepthToColour());
+            glm::vec3 transDepthToColour = convertCVToVec3(mRSCamera->getTranslationDepthToColour());
+
+            // Read extrinsics that map the ZED to the realsense colour camera, and invert to map in the opposite direction
+            glm::mat3 rotateRsToZed = glm::inverse(convertCVToMat3<double>(mR));
+            glm::vec3 transRsToZed = -convertCVToVec3<double>(mT);
+
+            // Extrinsics that map from ZED left to ZED right
+            float b = mZedCamera->getBaseline();
+            float c = mZedCamera->getConvergence();
+            glm::mat3 rotateLeftToRight(
+                cos(c), 0.0f, -sin(c),
+                0.0f, 1.0f, 0.0f,
+                sin(c), 0.0f, cos(c)
+            );
+            glm::vec3 transLeftToRight(-b * cos(c * 0.5f), 0.0f, b * sin(c * 0.5f));
+
+            // TODO: Clean this code up, and port to CUDA?
+            for (int row = 0; row < frame.rows; row++)
+            {
+                for (int col = 0; col < frame.cols; col++)
+                {
+                    // Map point to 3D space
+                    glm::vec3 point((float)col, (float)row, 1.0);
+                    float depth = (float)frame.at<unsigned short>(row, col) * mRSCamera->getDepthScale();
+                    point = (invRSCalib * point) * depth;
+
+                    // Map from depth -> colour -> ZED left
+                    point = rotateDepthToColour * point + transDepthToColour;
+                    point = rotateRsToZed * point + transRsToZed;
+
+                    // Map ZED left -> ZED right
+                    if (i == 1)
+                    {
+                        point = rotateLeftToRight * point + transLeftToRight;
+                    }
+
+                    // Read the depth, and project the 3D point to the ZED camera
+                    depth = point.z;
+                    point = zedCalib * (point / depth);
+
+                    // Write to the output texture
+                    writeDepth(transformedDepth, point.x, point.y, depth);
+                }
             }
 
             // Display
             if (mShowColour)
             {
-                glBindTexture(GL_TEXTURE_2D, mColour[i]);
-                TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, source->getWidth(), source->getHeight(), GL_BGR, GL_UNSIGNED_BYTE, frame.ptr()));
+                glBindTexture(GL_TEXTURE_2D, mZedCamera->getTexture((CameraSource::Eye)i));
             }
             else
             {
-                glBindTexture(GL_TEXTURE_2D, mDepth[i]);
-                TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, source->getWidth(), source->getHeight(), GL_RED, GL_UNSIGNED_SHORT, frame.ptr()));
+                glBindTexture(GL_TEXTURE_2D, mDepth[0]);
+                TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mRSCamera->getWidth(), mRSCamera->getHeight(), GL_RED, GL_UNSIGNED_SHORT, transformedDepth.ptr()));
             }
             mEyeQuad[i]->render();
         }
@@ -157,6 +178,21 @@ public:
         return cv::Size(1280, 480);
     }
 
+    void writeDepth(cv::Mat& out, float x, float y, float depth)
+    {
+        cv::Point2i pixel(std::round(x), std::round(y));
+        if (pixel.x >= 0 && pixel.x < out.cols && pixel.y >= 0 && pixel.y < out.rows)
+        {
+            unsigned short newDepth = (unsigned short)(depth / mRSCamera->getDepthScale());
+
+            // Reject the pixel if we're trying to overwrite an object that is already in front of the existing pixel
+            if (newDepth < out.at<unsigned short>(pixel.y, pixel.x))
+            {
+                out.at<unsigned short>(pixel.y, pixel.x) = newDepth;
+            }
+        }
+    }
+
 private:
     bool mShowColour;
 
@@ -165,7 +201,6 @@ private:
 
     Rectangle2D* mEyeQuad[2];
     Shader* mShader;
-    GLuint mColour[2];
     GLuint mDepth[2];
 
     // Extrinsics for the camera pair

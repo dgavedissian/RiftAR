@@ -153,6 +153,15 @@ public:
                 }
             }
 
+            // Clean up the depth image
+            //
+            // Based on code from BackgroundMaskCleaner.cpp at
+            // https://software.intel.com/en-us/blogs/2013/06/14/masking-rgb-inputs-with-depth-data-using-the-intel-percc-sdk-and-opencv
+            static cv::Mat openElement = getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(10, 10), cv::Point(5, 5));
+            static cv::Mat closeElement = getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(6, 6), cv::Point(3, 3));
+            morphologyEx(transformedDepth, transformedDepth, cv::MORPH_OPEN, openElement);
+            morphologyEx(transformedDepth, transformedDepth, cv::MORPH_CLOSE, closeElement);
+
             // Display
             if (mShowColour)
             {

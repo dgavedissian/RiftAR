@@ -7,6 +7,7 @@
 
 #include <OVR_CAPI.h>
 #include <OVR_CAPI_GL.h>
+#include <Extras/OVR_Math.h>
 
 class RiftAR : public App
 {
@@ -168,6 +169,22 @@ public:
 
         // Commit changes to the textures so they get picked up frame
         ovr_CommitTextureSwapChain(mSession, mTextureChain);
+
+        // Submit the frame
+        ovrLayerEyeFov ld;
+        ld.Header.Type = ovrLayerType_EyeFov;
+        ld.Header.Flags = ovrLayerFlag_TextureOriginAtBottomLeft;   // Because OpenGL.
+        for (int eye = 0; eye < 2; ++eye)
+        {
+            ld.ColorTexture[eye] = mTextureChain;
+            ld.Viewport[eye] = OVR::Recti(eye == ovrEye_Left ? 0 : mBufferSize.w / 2, 0, mBufferSize.w / 2, mBufferSize.h);
+            ld.Fov[eye] = mHmdDesc.DefaultEyeFov[eye];
+            ld.RenderPose[eye] = eyeRenderPose[eye];
+        }
+        ovrLayerHeader* layers = &ld.Header;
+        ovrResult result = ovr_SubmitFrame(mSession, mFrameIndex, nullptr, &layers, 1);
+        if (!OVR_SUCCESS(result))
+            THROW_ERROR("Failed to submit frame!");
 
         // Draw the mirror texture
         /*

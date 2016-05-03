@@ -31,8 +31,6 @@ int runApp(int argc, char** argv, App* app)
         glfwSetKeyCallback(window, App::glfwKeyEvent);
         while (!glfwWindowShouldClose(window))
         {
-            glClear(GL_COLOR_BUFFER_BIT);
-
             // Render
             app->render();
 

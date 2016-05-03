@@ -30,7 +30,7 @@ public:
 
         // Set up the cameras
         mZedCamera = new ZEDCamera();
-        mRSCamera = new F200Camera(640, 480, 60, F200Camera::DEPTH);
+        mRSCamera = new F200Camera(640, 480, 60, F200Camera::COLOUR | F200Camera::DEPTH);
         mRSCamera->setStream(F200Camera::DEPTH);
 
         // Get the texture sizes of Oculus eyes
@@ -97,12 +97,14 @@ public:
         // Create rendering primitives
         mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
         mQuadShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
+        mMirrorShader = new Shader("../media/quad.vs", "../media/quad.fs");
     }
 
     ~RiftAR()
     {
         delete mQuad;
         delete mQuadShader;
+        delete mMirrorShader;
 
         delete mZedCamera;
         delete mRSCamera;
@@ -112,7 +114,7 @@ public:
     }
 
     void render() override
-    {
+    {        
         // Get texture swap index where we must draw our frame
         GLuint curTexId;
         int curIndex;
@@ -133,8 +135,9 @@ public:
         ovr_GetEyePoses(mSession, mFrameIndex, ovrTrue, hmdToEyeOffset, eyeRenderPose, &sensorSampleTime);
 
         // Update the textures
-        mZedCamera->capture();
-        mZedCamera->updateTextures();
+        mRSCamera->capture();
+        mRSCamera->setStream(F200Camera::COLOUR);
+        mRSCamera->updateTextures();
 
         // Bind the frame buffer
         glBindFramebuffer(GL_FRAMEBUFFER, mFramebufferId);
@@ -153,19 +156,9 @@ public:
             glViewport(eye == ovrEye_Left ? 0 : mBufferSize.w / 2, 0, mBufferSize.w / 2, mBufferSize.h);
 
             // Bind the left or right ZED image
-            glBindTexture(GL_TEXTURE_2D, mZedCamera->getTexture(eye == ovrEye_Left ? CameraSource::LEFT : CameraSource::RIGHT));
+            glBindTexture(GL_TEXTURE_2D, mRSCamera->getTexture(eye == ovrEye_Left ? CameraSource::LEFT : CameraSource::RIGHT));
             mQuad->render();
         }
-
-        /*
-        // Avoids an error when calling SetAndClearRenderSurface during next iteration.
-        // Without this, during the next while loop iteration SetAndClearRenderSurface
-        // would bind a framebuffer with an invalid COLOR_ATTACHMENT0 because the texture ID
-        // associated with COLOR_ATTACHMENT0 had been unlocked by calling wglDXUnlockObjectsNV.
-        glBindFramebuffer(GL_FRAMEBUFFER, mFramebufferId);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
-        */
 
         // Commit changes to the textures so they get picked up frame
         ovr_CommitTextureSwapChain(mSession, mTextureChain);
@@ -183,16 +176,16 @@ public:
         }
         ovrLayerHeader* layers = &ld.Header;
         ovrResult result = ovr_SubmitFrame(mSession, mFrameIndex, nullptr, &layers, 1);
-        if (!OVR_SUCCESS(result))
+        if (OVR_FAILURE(result))
             THROW_ERROR("Failed to submit frame!");
 
         // Draw the mirror texture
-        /*
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, getSize().width, getSize().height);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glBindTexture(GL_TEXTURE_2D, mMirrorTextureId);
+        mMirrorShader->bind();
         mQuad->render();
-        */
+        return;
 
         // A frame has been completed
         mFrameIndex++;
@@ -220,6 +213,7 @@ private:
 
     Rectangle2D* mQuad;
     Shader* mQuadShader;
+    Shader* mMirrorShader;
 
     ZEDCamera* mZedCamera;
     F200Camera* mRSCamera;

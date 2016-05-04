@@ -4,38 +4,40 @@
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 
-#include <opencv2/opencv.hpp>
+struct CameraIntrinsics
+{
+    int width, height;
+    float fovH, fovV;
+
+    // Format camera matrix and coeffs in the format that OpenCV expects
+    cv::Mat cameraMatrix;
+    std::vector<double> coeffs;
+};
+
+struct CameraExtrinsics
+{
+    glm::mat3 rotation;
+    glm::vec3 translation;
+
+    static CameraExtrinsics combine(CameraExtrinsics& a, CameraExtrinsics& b);
+};
 
 class CameraSource
 {
 public:
     virtual ~CameraSource() {}
-
-    enum Eye
-    {
-        LEFT = 0,
-        RIGHT = 1
-    };
     
     virtual void capture() = 0;
     virtual void updateTextures() = 0;
 
     // Helper functions for other algorithms
-    virtual void copyFrameIntoCudaImage(Eye e, cudaGraphicsResource* resource) = 0;
-    virtual void copyFrameIntoCVImage(Eye e, cv::Mat* mat) = 0;
-    virtual const void* getRawData(Eye e) = 0;
+    virtual void copyFrameIntoCudaImage(uint camera, cudaGraphicsResource* resource) = 0;
+    virtual void copyFrameIntoCVImage(uint camera, cv::Mat* mat) = 0;
+    virtual const void* getRawData(uint camera) = 0;
 
     // Accessors
-    int getWidth() const { return mWidth; }
-    int getHeight() const { return mHeight; }
-    GLuint getTexture(Eye e) const { return mTexture[e]; }
-    cv::Mat& getCameraMatrix() { return mCameraMatrix; }
-    std::vector<double>& getDistCoeffs() { return mDistCoeffs; }
-
-protected:
-    int mWidth, mHeight;
-    GLuint mTexture[2];
-    cv::Mat mCameraMatrix;
-    std::vector<double> mDistCoeffs;
+    virtual CameraIntrinsics getIntrinsics(uint camera) = 0;
+    virtual CameraExtrinsics getExtrinsics(uint camera1, uint camera2) = 0;
+    virtual GLuint getTexture(uint camera) const = 0;
 
 };

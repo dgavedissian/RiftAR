@@ -52,21 +52,22 @@ set(SRC_FILES
     # GL helper objects ---------------
     src/lib/Rectangle2D.cpp
     src/lib/Shader.cpp
-    # Cameras ---------------
+    # Cameras -------------------------
+    src/lib/CameraSource.cpp
     src/lib/F200Camera.cpp
     src/lib/ZEDCamera.cpp
-    src/lib/ZEDOpenCVCamera.cpp)
+    src/lib/ZEDCVCamera.cpp)
 set(HDR_FILES
     src/lib/App.h
     src/lib/Common.h
     # GL helper objects ---------------
     src/lib/Rectangle2D.h
     src/lib/Shader.h
-    # Cameras ---------------
+    # Cameras -------------------------
     src/lib/CameraSource.h
     src/lib/F200Camera.h
     src/lib/ZEDCamera.h
-    src/lib/ZEDOpenCVCamera.h)
+    src/lib/ZEDCVCamera.h)
 link_directories(${ZED_LIBRARY_DIR})
 add_library(Common STATIC ${SRC_FILES} ${HDR_FILES})
 target_include_directories(Common PUBLIC ${INCLUDE_DIRS})

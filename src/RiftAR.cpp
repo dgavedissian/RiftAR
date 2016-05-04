@@ -30,8 +30,7 @@ public:
 
         // Set up the cameras
         mZedCamera = new ZEDCamera();
-        mRSCamera = new F200Camera(640, 480, 60, F200Camera::COLOUR | F200Camera::DEPTH);
-        mRSCamera->setStream(F200Camera::DEPTH);
+        mRSCamera = new F200Camera(640, 480, 60, F200Camera::ENABLE_COLOUR | F200Camera::ENABLE_DEPTH);
 
         // Get the texture sizes of Oculus eyes
         mHmdDesc = ovr_GetHmdDesc(mSession);
@@ -94,8 +93,16 @@ public:
             THROW_ERROR("Failed to create the mirror texture");
         ovr_GetMirrorTextureBufferGL(mSession, mMirrorTexture, &mMirrorTextureId);
 
+        // Calculate correct dimensions
+        float ovrFovH = (atanf(mHmdDesc.DefaultEyeFov[0].LeftTan) + atanf(mHmdDesc.DefaultEyeFov[0].RightTan));
+        float ovrFovV = (atanf(mHmdDesc.DefaultEyeFov[0].UpTan) + atanf(mHmdDesc.DefaultEyeFov[0].DownTan));
+        float ratioWidth = mZedCamera->getIntrinsics(ZEDCamera::LEFT).fovH / ovrFovH;
+        float ratioHeight = mZedCamera->getIntrinsics(ZEDCamera::LEFT).fovV / ovrFovV;
+        float width = 1.0f * ratioWidth;
+        float height = 1.0f * ratioHeight;
+
         // Create rendering primitives
-        mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
+        mQuad = new Rectangle2D(glm::vec2(0.5f - width / 2, 0.5f - height / 2), glm::vec2(0.5f + width / 2, 0.5f + height / 2));
         mQuadShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
         mMirrorShader = new Shader("../media/quad.vs", "../media/quad.fs");
     }
@@ -135,9 +142,9 @@ public:
         ovr_GetEyePoses(mSession, mFrameIndex, ovrTrue, hmdToEyeOffset, eyeRenderPose, &sensorSampleTime);
 
         // Update the textures
-        mRSCamera->capture();
-        mRSCamera->setStream(F200Camera::COLOUR);
-        mRSCamera->updateTextures();
+        mZedCamera->capture();
+        //mRSCamera->setStream(F200Camera::COLOUR);
+        mZedCamera->updateTextures();
 
         // Bind the frame buffer
         glBindFramebuffer(GL_FRAMEBUFFER, mFramebufferId);
@@ -156,7 +163,7 @@ public:
             glViewport(eye == ovrEye_Left ? 0 : mBufferSize.w / 2, 0, mBufferSize.w / 2, mBufferSize.h);
 
             // Bind the left or right ZED image
-            glBindTexture(GL_TEXTURE_2D, mRSCamera->getTexture(eye == ovrEye_Left ? CameraSource::LEFT : CameraSource::RIGHT));
+            glBindTexture(GL_TEXTURE_2D, mZedCamera->getTexture(eye));
             mQuad->render();
         }
 

@@ -8,6 +8,8 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
+typedef unsigned int uint;
+
 // GL and GLFW
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>

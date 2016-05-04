@@ -4,8 +4,6 @@
 ZEDCamera::ZEDCamera()
 {
     mCamera = new sl::zed::Camera(sl::zed::ZEDResolution_mode::VGA, 100.0f);
-    mWidth = mCamera->getImageSize().width;
-    mHeight = mCamera->getImageSize().height;
     sl::zed::ERRCODE zederror = mCamera->init(sl::zed::MODE::PERFORMANCE, -1, true);
     if (zederror != sl::zed::SUCCESS)
         THROW_ERROR("ZED camera not detected");
@@ -14,23 +12,27 @@ ZEDCamera::ZEDCamera()
     // From testing, the intrinsics for the left and right cameras were identical
     sl::zed::StereoParameters* params = mCamera->getParameters();
     sl::zed::CamParameters& left = params->LeftCam;
-    mCameraMatrix = cv::Mat::eye(3, 3, CV_64F);
-    mCameraMatrix.at<double>(0, 0) = left.fx;
-    mCameraMatrix.at<double>(1, 1) = left.fy;
-    mCameraMatrix.at<double>(0, 2) = left.cx;
-    mCameraMatrix.at<double>(1, 2) = left.cy;
-    mDistCoeffs.insert(mDistCoeffs.end(), left.disto, left.disto + 5);
+    mIntrinsics.cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
+    mIntrinsics.cameraMatrix.at<double>(0, 0) = left.fx;
+    mIntrinsics.cameraMatrix.at<double>(1, 1) = left.fy;
+    mIntrinsics.cameraMatrix.at<double>(0, 2) = left.cx;
+    mIntrinsics.cameraMatrix.at<double>(1, 2) = left.cy;
+    mIntrinsics.coeffs.insert(mIntrinsics.coeffs.end(), left.disto, left.disto + 5);
 
-    // Get extrinsics for right camera
-    mBaseline = params->baseline * 1e-3;
-    mConvergence = params->convergence;
+    // Image size
+    mIntrinsics.width = mCamera->getImageSize().width;
+    mIntrinsics.height = mCamera->getImageSize().height;
+
+    // Fov
+    mIntrinsics.fovH = atanf(mCamera->getImageSize().width / (mCamera->getParameters()->LeftCam.fx * 2.0f)) * 2.0f;
+    mIntrinsics.fovV = atanf(mCamera->getImageSize().height / (mCamera->getParameters()->LeftCam.fy * 2.0f)) * 2.0f;
 
     // Set up resources for each eye
     for (int eye = LEFT; eye <= RIGHT; eye++)
     {
         glGenTextures(1, &mTexture[eye]);
         glBindTexture(GL_TEXTURE_2D, mTexture[eye]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
+        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mIntrinsics.width, mIntrinsics.height, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -60,24 +62,62 @@ void ZEDCamera::updateTextures()
     copyFrameIntoCudaImage(RIGHT, mCudaImage[RIGHT]);
 }
 
-void ZEDCamera::copyFrameIntoCudaImage(Eye e, cudaGraphicsResource* resource)
+void ZEDCamera::copyFrameIntoCudaImage(uint camera, cudaGraphicsResource* resource)
 {
-    sl::zed::Mat m = mCamera->retrieveImage_gpu((sl::zed::SIDE)e);
+    sl::zed::Mat m = mCamera->retrieveImage_gpu(mapCameraToSide(camera));
     cudaArray_t arrIm;
-    cudaGraphicsMapResources(1, &mCudaImage[e], 0);
-    cudaGraphicsSubResourceGetMappedArray(&arrIm, mCudaImage[e], 0, 0);
-    cudaMemcpy2DToArray(arrIm, 0, 0, m.data, m.step, mWidth * 4, mHeight, cudaMemcpyDeviceToDevice);
-    cudaGraphicsUnmapResources(1, &mCudaImage[e], 0);
+    cudaGraphicsMapResources(1, &mCudaImage[camera], 0);
+    cudaGraphicsSubResourceGetMappedArray(&arrIm, mCudaImage[camera], 0, 0);
+    cudaMemcpy2DToArray(arrIm, 0, 0, m.data, m.step, mIntrinsics.width * 4, mIntrinsics.height, cudaMemcpyDeviceToDevice);
+    cudaGraphicsUnmapResources(1, &mCudaImage[camera], 0);
 }
 
-void ZEDCamera::copyFrameIntoCVImage(Eye e, cv::Mat* mat)
+void ZEDCamera::copyFrameIntoCVImage(uint camera, cv::Mat* mat)
 {
-    cv::Mat wrapped = slMat2cvMat(mCamera->retrieveImage((sl::zed::SIDE)e));
+    cv::Mat wrapped = slMat2cvMat(mCamera->retrieveImage(mapCameraToSide(camera)));
     cvtColor(wrapped, *mat, cv::COLOR_BGRA2BGR);
 }
 
-const void* ZEDCamera::getRawData(Eye e)
+const void* ZEDCamera::getRawData(uint camera)
 {
-    return mCamera->retrieveImage((sl::zed::SIDE)e).data;
+    return mCamera->retrieveImage(mapCameraToSide(camera)).data;
+}
+
+CameraIntrinsics ZEDCamera::getIntrinsics(uint camera)
+{
+    return mIntrinsics;
+}
+
+CameraExtrinsics ZEDCamera::getExtrinsics(uint camera1, uint camera2)
+{
+    if (camera1 == camera2)
+        THROW_ERROR("Cannot get extrinsics mapping a camera to itself");
+    if (camera1 > 1 || camera2 > 1)
+        THROW_ERROR("Camera must be ZEDCamera::LEFT or ZEDCamera::Right");
+
+    float baseline = mCamera->getParameters()->baseline * 1e-3f;
+    CameraExtrinsics out;
+    out.rotation = glm::mat3(1.0f);
+    out.translation = glm::vec3(-baseline, 0.0f, 0.0f);
+
+    // Right to left
+    if (camera2 == 0)
+        out.translation.x = -out.translation.x;
+
+    return out;
+}
+
+GLuint ZEDCamera::getTexture(uint camera) const
+{
+    if (camera > 1)
+        THROW_ERROR("Camera must be ZEDCamera::LEFT or ZEDCamera::Right");
+    return mTexture[camera];
+}
+
+sl::zed::SIDE ZEDCamera::mapCameraToSide(uint camera)
+{
+    if (camera > 1)
+        THROW_ERROR("Unsupported camera");
+    return (sl::zed::SIDE)camera;
 }
 

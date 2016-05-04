@@ -7,36 +7,45 @@
 class F200Camera : public CameraSource
 {
 public:
-    enum Stream
+    enum
     {
-        COLOUR = 1,
-        DEPTH = 2,
-        INFRARED = 4,
-        INFRARED2 = 8
+        ENABLE_COLOUR = 1,
+        ENABLE_DEPTH = 2,
+        ENABLE_INFRARED = 4,
+        ENABLE_INFRARED2 = 8
     };
 
-    F200Camera(int width, int height, int frameRate, int streams);
-    ~F200Camera();
+    enum
+    {
+        COLOUR,
+        DEPTH,
+        INFRARED,
+        INFRARED2,
+        STREAM_COUNT
+    };
 
-    void setStream(Stream stream);
+    F200Camera(uint width, uint height, uint frameRate, uint streams);
+    ~F200Camera();
 
     void capture() override;
     void updateTextures() override;
-    void copyFrameIntoCudaImage(Eye e, cudaGraphicsResource* resource) override;
-    void copyFrameIntoCVImage(Eye e, cv::Mat* mat) override;
-    const void* getRawData(Eye e) override;
+    void copyFrameIntoCudaImage(uint camera, cudaGraphicsResource* resource) override;
+    void copyFrameIntoCVImage(uint camera, cv::Mat* mat) override;
+    const void* getRawData(uint camera) override;
+
+    CameraIntrinsics getIntrinsics(uint camera) override;
+    CameraExtrinsics getExtrinsics(uint camera1, uint camera2) override;
+    GLuint getTexture(uint camera) const override;
 
     float getDepthScale() { return mDevice->get_depth_scale(); }
-    cv::Mat& getRotationDepthToColour() { return mRotateDToC; }
-    cv::Vec3f& getTranslationDepthToColour() { return mTranslateDToC; }
 
 private:
-    Stream mCurrentStream;
+    int mEnabledStreams;
     rs::context* mContext;
     rs::device* mDevice;
 
-    GLuint mStreamTextures[4]; // one for each stream
+    GLuint mStreamTextures[STREAM_COUNT]; // one for each stream
 
-    cv::Mat mRotateDToC;
-    cv::Vec3f mTranslateDToC;
+    rs::stream mapCameraToStream(uint camera);
+    CameraIntrinsics buildIntrinsics(rs::intrinsics& intr);
 };

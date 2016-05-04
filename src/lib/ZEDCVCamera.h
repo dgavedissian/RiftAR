@@ -1,14 +1,12 @@
 #pragma once
 
-#include <zed/Camera.hpp>
-
 #include "CameraSource.h"
 
-class ZEDCamera : public CameraSource
+class ZEDCVCamera : public CameraSource
 {
 public:
-    ZEDCamera();
-    ~ZEDCamera();
+    ZEDCVCamera(int device);
+    ~ZEDCVCamera();
 
     enum
     {
@@ -27,11 +25,11 @@ public:
     GLuint getTexture(uint camera) const override;
 
 private:
-    sl::zed::Camera* mCamera;
+    cv::VideoCapture* mCap;
     GLuint mTexture[2];
-    cudaGraphicsResource* mCudaImage[2];
+    cv::Mat mFrame[2];
 
-    CameraIntrinsics mIntrinsics;
+    uint mWidth, mHeight;
 
-    sl::zed::SIDE mapCameraToSide(uint camera);
+    void checkCamera(uint camera) const;
 };

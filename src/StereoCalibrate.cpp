@@ -14,17 +14,20 @@ public:
     void init() override
     {
         mZedCamera = new ZEDCamera();
-        mRSCamera = new F200Camera(640, 480, 60, F200Camera::COLOUR);
-        mRSCamera->setStream(F200Camera::COLOUR);
+        mRSCamera = new F200Camera(640, 480, 60, F200Camera::ENABLE_COLOUR);
 
         // Create OpenGL images to visualise the calibration
         glGenTextures(2, mTexture);
         glBindTexture(GL_TEXTURE_2D, mTexture[0]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mZedCamera->getWidth(), mZedCamera->getHeight(), 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
+        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
+            mZedCamera->getIntrinsics(ZEDCamera::LEFT).width, mZedCamera->getIntrinsics(ZEDCamera::LEFT).height,
+            0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glBindTexture(GL_TEXTURE_2D, mTexture[1]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mRSCamera->getWidth(), mRSCamera->getHeight(), 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
+        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
+            mRSCamera->getIntrinsics(F200Camera::COLOUR).width, mRSCamera->getIntrinsics(F200Camera::COLOUR).height,
+            0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
@@ -39,9 +42,9 @@ public:
     {
         // Read the left frame from both cameras
         mZedCamera->capture();
-        mZedCamera->copyFrameIntoCVImage(CameraSource::LEFT, &mFrame[0]);
+        mZedCamera->copyFrameIntoCVImage(ZEDCamera::LEFT, &mFrame[0]);
         mRSCamera->capture();
-        mRSCamera->copyFrameIntoCVImage(CameraSource::LEFT, &mFrame[1]);
+        mRSCamera->copyFrameIntoCVImage(F200Camera::COLOUR, &mFrame[1]);
 
         // Display them
         static Rectangle2D leftQuad(glm::vec2(0.0f, 0.0f), glm::vec2(0.5f, 1.0f));
@@ -49,11 +52,13 @@ public:
         static Shader shader("../media/quad.vs", "../media/quad.fs");
         shader.bind();
         glBindTexture(GL_TEXTURE_2D, mTexture[0]);
-        TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mZedCamera->getWidth(), mZedCamera->getHeight(),
+        TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+            mZedCamera->getIntrinsics(ZEDCamera::LEFT).width, mZedCamera->getIntrinsics(ZEDCamera::LEFT).height,
             GL_BGR, GL_UNSIGNED_BYTE, mFrame[0].ptr()));
         leftQuad.render();
         glBindTexture(GL_TEXTURE_2D, mTexture[1]);
-        TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mRSCamera->getWidth(), mRSCamera->getHeight(),
+        TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+            mRSCamera->getIntrinsics(F200Camera::COLOUR).width, mRSCamera->getIntrinsics(F200Camera::COLOUR).height,
             GL_BGR, GL_UNSIGNED_BYTE, mFrame[1].ptr()));
         rightQuad.render();
     }
@@ -100,10 +105,13 @@ public:
                             objectPoints[i].push_back(cv::Point3f(j * squareSize, k * squareSize, 0.0));
                 }
 
+                CameraIntrinsics& zedIntr = mZedCamera->getIntrinsics(ZEDCamera::LEFT);
+                CameraIntrinsics& rsIntr = mRSCamera->getIntrinsics(F200Camera::COLOUR);
+
                 cv::Mat R, T, E, F;
                 double rms = stereoCalibrate(objectPoints, mLeftCorners, mRightCorners,
-                    mZedCamera->getCaneraMatrix(), mZedCamera->getDistCoeffs(),
-                    mRSCamera->getCaneraMatrix(), mRSCamera->getDistCoeffs(),
+                    zedIntr.cameraMatrix, zedIntr.coeffs,
+                    rsIntr.cameraMatrix, rsIntr.coeffs,
                     mFrame[0].size(), R, T, E, F,
                     cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, 1e-5),
                     cv::CALIB_FIX_INTRINSIC);

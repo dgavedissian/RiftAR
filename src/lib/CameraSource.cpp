@@ -8,3 +8,13 @@ CameraExtrinsics CameraExtrinsics::combine(CameraExtrinsics& a, CameraExtrinsics
     out.translation = b.rotation * a.translation + b.translation;
     return out;
 }
+
+uint CameraSource::getWidth(uint camera) const
+{
+    return getIntrinsics(camera).width;
+}
+
+uint CameraSource::getHeight(uint camera) const
+{
+    return getIntrinsics(camera).height;
+}

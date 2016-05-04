@@ -132,12 +132,12 @@ const void* F200Camera::getRawData(uint camera)
     return mDevice->get_frame_data(mapCameraToStream(camera));
 }
 
-CameraIntrinsics F200Camera::getIntrinsics(uint camera)
+CameraIntrinsics F200Camera::getIntrinsics(uint camera) const
 {
     return buildIntrinsics(mDevice->get_stream_intrinsics(mapCameraToStream(camera)));
 }
 
-CameraExtrinsics F200Camera::getExtrinsics(uint camera1, uint camera2)
+CameraExtrinsics F200Camera::getExtrinsics(uint camera1, uint camera2) const
 {
     if (camera1 == camera2)
         THROW_ERROR("Cannot get extrinsics mapping a camera to itself");
@@ -167,7 +167,7 @@ GLuint F200Camera::getTexture(uint camera) const
     return mStreamTextures[camera];
 }
 
-rs::stream F200Camera::mapCameraToStream(uint camera)
+rs::stream F200Camera::mapCameraToStream(uint camera) const
 {
     switch (camera)
     {
@@ -179,7 +179,7 @@ rs::stream F200Camera::mapCameraToStream(uint camera)
     }
 }
 
-CameraIntrinsics F200Camera::buildIntrinsics(rs::intrinsics& intr)
+CameraIntrinsics F200Camera::buildIntrinsics(rs::intrinsics& intr) const
 {
     CameraIntrinsics out;
 
@@ -190,7 +190,7 @@ CameraIntrinsics F200Camera::buildIntrinsics(rs::intrinsics& intr)
     out.cameraMatrix.at<double>(1, 2) = intr.ppx;
     out.coeffs.insert(out.coeffs.end(), intr.coeffs, intr.coeffs + 5);
 
-    float pi = acos(-1.0);
+    float pi = (float)acos(-1.0);
     out.fovH = intr.hfov() * pi / 180.0f;
     out.fovV = intr.vfov() * pi / 180.0f;
 

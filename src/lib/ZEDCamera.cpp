@@ -83,12 +83,12 @@ const void* ZEDCamera::getRawData(uint camera)
     return mCamera->retrieveImage(mapCameraToSide(camera)).data;
 }
 
-CameraIntrinsics ZEDCamera::getIntrinsics(uint camera)
+CameraIntrinsics ZEDCamera::getIntrinsics(uint camera) const
 {
     return mIntrinsics;
 }
 
-CameraExtrinsics ZEDCamera::getExtrinsics(uint camera1, uint camera2)
+CameraExtrinsics ZEDCamera::getExtrinsics(uint camera1, uint camera2) const
 {
     if (camera1 == camera2)
         THROW_ERROR("Cannot get extrinsics mapping a camera to itself");
@@ -114,7 +114,7 @@ GLuint ZEDCamera::getTexture(uint camera) const
     return mTexture[camera];
 }
 
-sl::zed::SIDE ZEDCamera::mapCameraToSide(uint camera)
+sl::zed::SIDE ZEDCamera::mapCameraToSide(uint camera) const
 {
     if (camera > 1)
         THROW_ERROR("Unsupported camera");

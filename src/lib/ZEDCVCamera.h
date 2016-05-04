@@ -20,8 +20,8 @@ public:
     void copyFrameIntoCVImage(uint camera, cv::Mat* mat) override;
     const void* getRawData(uint camera) override;
 
-    CameraIntrinsics getIntrinsics(uint camera) override;
-    CameraExtrinsics getExtrinsics(uint camera1, uint camera2) override;
+    CameraIntrinsics getIntrinsics(uint camera) const override;
+    CameraExtrinsics getExtrinsics(uint camera1, uint camera2) const override;
     GLuint getTexture(uint camera) const override;
 
 private:

@@ -61,12 +61,12 @@ const void* ZEDCVCamera::getRawData(uint camera)
     return mFrame[camera].ptr();
 }
 
-CameraIntrinsics ZEDCVCamera::getIntrinsics(uint camera)
+CameraIntrinsics ZEDCVCamera::getIntrinsics(uint camera) const
 {
     return CameraIntrinsics();
 }
 
-CameraExtrinsics ZEDCVCamera::getExtrinsics(uint camera1, uint camera2)
+CameraExtrinsics ZEDCVCamera::getExtrinsics(uint camera1, uint camera2) const
 {
     return CameraExtrinsics();
 }

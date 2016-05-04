@@ -33,8 +33,8 @@ public:
     void copyFrameIntoCVImage(uint camera, cv::Mat* mat) override;
     const void* getRawData(uint camera) override;
 
-    CameraIntrinsics getIntrinsics(uint camera) override;
-    CameraExtrinsics getExtrinsics(uint camera1, uint camera2) override;
+    CameraIntrinsics getIntrinsics(uint camera) const override;
+    CameraExtrinsics getExtrinsics(uint camera1, uint camera2) const override;
     GLuint getTexture(uint camera) const override;
 
     float getDepthScale() { return mDevice->get_depth_scale(); }
@@ -46,6 +46,6 @@ private:
 
     GLuint mStreamTextures[STREAM_COUNT]; // one for each stream
 
-    rs::stream mapCameraToStream(uint camera);
-    CameraIntrinsics buildIntrinsics(rs::intrinsics& intr);
+    rs::stream mapCameraToStream(uint camera) const;
+    CameraIntrinsics buildIntrinsics(rs::intrinsics& intr) const;
 };

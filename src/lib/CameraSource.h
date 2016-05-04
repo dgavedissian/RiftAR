@@ -36,8 +36,11 @@ public:
     virtual const void* getRawData(uint camera) = 0;
 
     // Accessors
-    virtual CameraIntrinsics getIntrinsics(uint camera) = 0;
-    virtual CameraExtrinsics getExtrinsics(uint camera1, uint camera2) = 0;
+    virtual CameraIntrinsics getIntrinsics(uint camera) const = 0;
+    virtual CameraExtrinsics getExtrinsics(uint camera1, uint camera2) const = 0;
     virtual GLuint getTexture(uint camera) const = 0;
+
+    uint getWidth(uint camera) const;
+    uint getHeight(uint camera) const;
 
 };

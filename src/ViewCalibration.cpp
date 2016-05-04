@@ -27,11 +27,6 @@ glm::vec3 convertCVToVec3(cv::Mat& v)
     return glm::vec3((float)v.at<T>(0), (float)v.at<T>(1), (float)v.at<T>(2));
 }
 
-glm::vec3 convertCVToVec3(cv::Vec3f& v)
-{
-    return glm::make_vec3(v.val);
-}
-
 class ViewCalibration : public App
 {
 public:
@@ -42,14 +37,14 @@ public:
 
     void init() override
     {
-        mZedCamera = new ZEDCamera();
-        mRSCamera = new F200Camera(640, 480, 60, F200Camera::ENABLE_COLOUR | F200Camera::ENABLE_DEPTH);
+        mZed = new ZEDCamera();
+        mRealsense = new F200Camera(640, 480, 60, F200Camera::ENABLE_COLOUR | F200Camera::ENABLE_DEPTH);
 
         // Create OpenGL images to view the depth stream
         glGenTextures(1, &mDepth);
         glBindTexture(GL_TEXTURE_2D, mDepth);
         TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
-            mRSCamera->getIntrinsics(F200Camera::DEPTH).width, mRSCamera->getIntrinsics(F200Camera::DEPTH).height,
+            mRealsense->getWidth(F200Camera::COLOUR), mRealsense->getHeight(F200Camera::COLOUR),
             0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -77,8 +72,8 @@ public:
         delete mFullscreenShader;
         delete mQuad;
 
-        delete mZedCamera;
-        delete mRSCamera;
+        delete mZed;
+        delete mRealsense;
     }
 
     void render() override
@@ -86,14 +81,14 @@ public:
         cv::Mat frame, transformedDepth;
 
         // Capture from cameras
-        mZedCamera->capture();
-        mZedCamera->updateTextures();
-        mRSCamera->capture();
+        mZed->capture();
+        mZed->updateTextures();
+        mRealsense->capture();
 
         // Display eyes
         for (int i = 0; i < 2; i++)
         {
-            mRSCamera->copyFrameIntoCVImage(F200Camera::DEPTH, &frame);
+            mRealsense->copyFrameIntoCVImage(F200Camera::DEPTH, &frame);
 
             // Create the output depth frame and initialise to maximum depth. This is required for the morphology filters
             transformedDepth = cv::Mat::zeros(cv::Size(frame.cols, frame.rows), CV_16UC1);
@@ -106,18 +101,18 @@ public:
             }
 
             // Read parameters
-            glm::mat3 rsCalib = convertCVToMat3<double>(mRSCamera->getIntrinsics(F200Camera::DEPTH).cameraMatrix);
+            glm::mat3 rsCalib = convertCVToMat3<double>(mRealsense->getIntrinsics(F200Camera::DEPTH).cameraMatrix);
             glm::mat3 invRSCalib = glm::inverse(rsCalib);
-            glm::mat3 zedCalib = convertCVToMat3<double>(mRSCamera->getIntrinsics(ZEDCamera::LEFT).cameraMatrix);
+            glm::mat3 zedCalib = convertCVToMat3<double>(mRealsense->getIntrinsics(ZEDCamera::LEFT).cameraMatrix);
 
             // Extrinsics to map from depth to colour in the F200
-            CameraExtrinsics depthToColour = mRSCamera->getExtrinsics(F200Camera::DEPTH, F200Camera::COLOUR);
+            CameraExtrinsics depthToColour = mRealsense->getExtrinsics(F200Camera::DEPTH, F200Camera::COLOUR);
 
             // Combined extrinsics mapping RS depth to ZED
             CameraExtrinsics rsToZed = CameraExtrinsics::combine(depthToColour, mRSColourToZedLeft);
             if (i == 1) // Right eye
             {
-                rsToZed = CameraExtrinsics::combine(rsToZed, mZedCamera->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT));
+                rsToZed = CameraExtrinsics::combine(rsToZed, mZed->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT));
             }
 
             // TODO: Clean this code up, and port to CUDA?
@@ -129,7 +124,7 @@ public:
                     unsigned short depthPixel = frame.at<unsigned short>(row, col);
                     if (depthPixel == 0)
                         continue;
-                    float depth = (float)depthPixel * mRSCamera->getDepthScale();
+                    float depth = (float)depthPixel * mRealsense->getDepthScale();
 
                     // Top left of depth pixel
                     glm::vec3 point((float)col - 0.5f, (float)row - 0.5f, 1.0);
@@ -177,7 +172,7 @@ public:
             // Copy depth data
             glBindTexture(GL_TEXTURE_2D, mDepth);
             TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-                mRSCamera->getIntrinsics(F200Camera::DEPTH).width, mRSCamera->getIntrinsics(F200Camera::DEPTH).height,
+                mRealsense->getWidth(F200Camera::COLOUR), mRealsense->getHeight(F200Camera::COLOUR),
                 GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, transformedDepth.ptr()));
 
             // Display
@@ -194,7 +189,7 @@ public:
             {
                 // Show colour image using depth
                 glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, mZedCamera->getTexture(i));
+                glBindTexture(GL_TEXTURE_2D, mZed->getTexture(i));
                 glActiveTexture(GL_TEXTURE1);
                 glBindTexture(GL_TEXTURE_2D, mDepth);
                 mFullscreenWithDepthShader->bind();
@@ -214,16 +209,10 @@ public:
         return cv::Size(1280, 480);
     }
 
-    void combineExtrinsics(glm::mat3 r1, glm::mat3 r2, glm::vec3 t1, glm::vec3 t2, glm::mat3& ro, glm::vec3& to)
-    {
-        ro = r2 * r1;
-        to = r2 * t1 + t2;
-    }
-
     void writeDepth(cv::Mat& out, int x, int y, float depth)
     {
         unsigned short oldDepth = out.at<unsigned short>(y, x);
-        unsigned short newDepth = (unsigned short)(depth / mRSCamera->getDepthScale());
+        unsigned short newDepth = (unsigned short)(depth / mRealsense->getDepthScale());
 
         // Basic z-buffering here...
         if (newDepth < oldDepth)
@@ -235,8 +224,8 @@ public:
 private:
     bool mShowColour;
 
-    ZEDCamera* mZedCamera;
-    F200Camera* mRSCamera;
+    ZEDCamera* mZed;
+    F200Camera* mRealsense;
 
     Rectangle2D* mQuad;
     Shader* mFullscreenShader;

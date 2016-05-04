@@ -29,8 +29,8 @@ public:
             THROW_ERROR("Oculus Rift not detected");
 
         // Set up the cameras
-        mZedCamera = new ZEDCamera();
-        mRSCamera = new F200Camera(640, 480, 60, F200Camera::ENABLE_COLOUR | F200Camera::ENABLE_DEPTH);
+        mZed = new ZEDCamera();
+        mRealsense = new F200Camera(640, 480, 60, F200Camera::ENABLE_COLOUR | F200Camera::ENABLE_DEPTH);
 
         // Get the texture sizes of Oculus eyes
         mHmdDesc = ovr_GetHmdDesc(mSession);
@@ -96,8 +96,8 @@ public:
         // Calculate correct dimensions
         float ovrFovH = (atanf(mHmdDesc.DefaultEyeFov[0].LeftTan) + atanf(mHmdDesc.DefaultEyeFov[0].RightTan));
         float ovrFovV = (atanf(mHmdDesc.DefaultEyeFov[0].UpTan) + atanf(mHmdDesc.DefaultEyeFov[0].DownTan));
-        float ratioWidth = mZedCamera->getIntrinsics(ZEDCamera::LEFT).fovH / ovrFovH;
-        float ratioHeight = mZedCamera->getIntrinsics(ZEDCamera::LEFT).fovV / ovrFovV;
+        float ratioWidth = mZed->getIntrinsics(ZEDCamera::LEFT).fovH / ovrFovH;
+        float ratioHeight = mZed->getIntrinsics(ZEDCamera::LEFT).fovV / ovrFovV;
         float width = 1.0f * ratioWidth;
         float height = 1.0f * ratioHeight;
 
@@ -113,8 +113,8 @@ public:
         delete mQuadShader;
         delete mMirrorShader;
 
-        delete mZedCamera;
-        delete mRSCamera;
+        delete mZed;
+        delete mRealsense;
 
         ovr_Destroy(mSession);
         ovr_Shutdown();
@@ -142,9 +142,8 @@ public:
         ovr_GetEyePoses(mSession, mFrameIndex, ovrTrue, hmdToEyeOffset, eyeRenderPose, &sensorSampleTime);
 
         // Update the textures
-        mZedCamera->capture();
-        //mRSCamera->setStream(F200Camera::COLOUR);
-        mZedCamera->updateTextures();
+        mZed->capture();
+        mZed->updateTextures();
 
         // Bind the frame buffer
         glBindFramebuffer(GL_FRAMEBUFFER, mFramebufferId);
@@ -163,7 +162,7 @@ public:
             glViewport(eye == ovrEye_Left ? 0 : mBufferSize.w / 2, 0, mBufferSize.w / 2, mBufferSize.h);
 
             // Bind the left or right ZED image
-            glBindTexture(GL_TEXTURE_2D, mZedCamera->getTexture(eye));
+            glBindTexture(GL_TEXTURE_2D, mZed->getTexture(eye));
             mQuad->render();
         }
 
@@ -222,8 +221,8 @@ private:
     Shader* mQuadShader;
     Shader* mMirrorShader;
 
-    ZEDCamera* mZedCamera;
-    F200Camera* mRSCamera;
+    ZEDCamera* mZed;
+    F200Camera* mRealsense;
 
     int mFrameIndex;
 

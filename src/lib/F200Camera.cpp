@@ -63,7 +63,14 @@ F200Camera::~F200Camera()
 
 void F200Camera::capture()
 {
-    mDevice->wait_for_frames();
+    try
+    {
+        mDevice->wait_for_frames();
+    }
+    catch (std::exception&)
+    {
+        // Ignore
+    }
 }
 
 void F200Camera::updateTextures()

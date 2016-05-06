@@ -14,7 +14,7 @@ Rectangle2D::Rectangle2D(const glm::vec2& begin, const glm::vec2& end) :
         end.x, end.y,      1.0f, 0.0f   // bottom right
     };
     GLuint elementData[] = {
-        0, 1, 2, 2, 1, 3
+        2, 1, 0, 3, 1, 2
     };
 
     // Create vertex array object to hold buffers

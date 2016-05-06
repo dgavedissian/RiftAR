@@ -3,7 +3,7 @@
 
 ZEDCamera::ZEDCamera()
 {
-    mCamera = new sl::zed::Camera(sl::zed::ZEDResolution_mode::VGA, 100.0f);
+    mCamera = new sl::zed::Camera(sl::zed::ZEDResolution_mode::VGA, 60.0f);
     sl::zed::ERRCODE zederror = mCamera->init(sl::zed::MODE::PERFORMANCE, -1, true);
     if (zederror != sl::zed::SUCCESS)
         THROW_ERROR("ZED camera not detected");

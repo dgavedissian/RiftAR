@@ -3,6 +3,7 @@
 #include "lib/ZEDCamera.h"
 #include "lib/Rectangle2D.h"
 #include "lib/Shader.h"
+#include "lib/STLModel.h"
 
 #include <opencv2/imgproc/imgproc.hpp>
 
@@ -64,6 +65,18 @@ public:
         mFullscreenWithDepthShader->bind();
         mFullscreenWithDepthShader->setUniform<int>("rgbCameraImage", 0);
         mFullscreenWithDepthShader->setUniform<int>("depthCameraImage", 1);
+
+        glm::mat4 model = glm::translate(glm::mat4(), glm::vec3(-0.1f, -0.1f, -0.4f));
+        glm::mat4 view;
+        glm::mat4 projection = glm::perspective(glm::radians(75.0f), 640.0f / 480.0f, 0.01f, 10.0f);
+        mModel = new STLModel("../media/meshes/skull.stl");
+        mModelShader = new Shader("../media/model.vs", "../media/model.fs");
+        mModelShader->bind();
+        mModelShader->setUniform("modelViewProjectionMatrix", projection * model);
+        mModelShader->setUniform("modelMatrix", model);
+
+        // Enable culling and depth testing
+        glEnable(GL_CULL_FACE);
     }
 
     ~ViewCalibration()
@@ -78,6 +91,8 @@ public:
 
     void render() override
     {
+        glClear(GL_DEPTH_BUFFER_BIT);
+
         cv::Mat frame, transformedDepth;
 
         // Capture from cameras
@@ -177,6 +192,7 @@ public:
 
             // Display
             glViewport(i == 0 ? 0 : getSize().width / 2, 0, getSize().width / 2, getSize().height);
+            glDisable(GL_DEPTH_TEST);
             if (!mShowColour)
             {
                 // Show depth as a texture
@@ -194,6 +210,11 @@ public:
                 glBindTexture(GL_TEXTURE_2D, mDepth);
                 mFullscreenWithDepthShader->bind();
                 mQuad->render();
+
+                // Display the mesh
+                glEnable(GL_DEPTH_TEST);
+                mModelShader->bind();
+                mModel->render();
             }
         }
     }
@@ -206,7 +227,7 @@ public:
 
     cv::Size getSize() override
     {
-        return cv::Size(1280, 480);
+        return cv::Size(1600, 600);
     }
 
     void writeDepth(cv::Mat& out, int x, int y, float depth)
@@ -231,6 +252,9 @@ private:
     Shader* mFullscreenShader;
     Shader* mFullscreenWithDepthShader;
     GLuint mDepth;
+
+    STLModel* mModel;
+    Shader* mModelShader;
 
     // Extrinsics for the camera pair
     CameraExtrinsics mRSColourToZedLeft;

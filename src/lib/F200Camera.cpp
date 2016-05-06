@@ -8,6 +8,7 @@
 F200Camera::F200Camera(uint width, uint height, uint frameRate, uint streams) :
     mEnabledStreams(streams)
 {
+    rs::log_to_console(rs::log_severity::warn);
     mContext = new rs::context();
     if (mContext->get_device_count() == 0)
         THROW_ERROR("Unable to detect the RealsenseF200");

@@ -65,8 +65,6 @@ public:
                 glBindTexture(GL_TEXTURE_2D, chainTexId);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             }
         }
 
@@ -78,8 +76,6 @@ public:
         glBindTexture(GL_TEXTURE_2D, mDepthBufferId);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, mBufferSize.w, mBufferSize.h, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
 
         // Create a mirror texture which is used to display the result in the GLFW window
@@ -94,15 +90,15 @@ public:
         ovr_GetMirrorTextureBufferGL(mSession, mMirrorTexture, &mMirrorTextureId);
 
         // Calculate correct dimensions
-        float ovrFovH = (atanf(mHmdDesc.DefaultEyeFov[0].LeftTan) + atanf(mHmdDesc.DefaultEyeFov[0].RightTan));
-        float ovrFovV = (atanf(mHmdDesc.DefaultEyeFov[0].UpTan) + atanf(mHmdDesc.DefaultEyeFov[0].DownTan));
+        float ovrFovH = atanf(mHmdDesc.DefaultEyeFov[0].LeftTan) + atanf(mHmdDesc.DefaultEyeFov[0].RightTan);
+        float ovrFovV = atanf(mHmdDesc.DefaultEyeFov[0].UpTan) + atanf(mHmdDesc.DefaultEyeFov[0].DownTan);
         float ratioWidth = mZed->getIntrinsics(ZEDCamera::LEFT).fovH / ovrFovH;
         float ratioHeight = mZed->getIntrinsics(ZEDCamera::LEFT).fovV / ovrFovV;
         float width = 1.0f * ratioWidth;
         float height = 1.0f * ratioHeight;
 
         // Create rendering primitives
-        mQuad = new Rectangle2D(glm::vec2(0.5f - width / 2, 0.5f - height / 2), glm::vec2(0.5f + width / 2, 0.5f + height / 2));
+        mQuad = new Rectangle2D(glm::vec2(0.5f - width * 0.5f, 0.5f - height * 0.5f), glm::vec2(0.5f + width * 0.5f, 0.5f + height * 0.5f));
         mQuadShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
         mMirrorShader = new Shader("../media/quad.vs", "../media/quad.fs");
     }
@@ -172,7 +168,7 @@ public:
         // Submit the frame
         ovrLayerEyeFov ld;
         ld.Header.Type = ovrLayerType_EyeFov;
-        ld.Header.Flags = ovrLayerFlag_TextureOriginAtBottomLeft;   // Because OpenGL.
+        ld.Header.Flags = ovrLayerFlag_TextureOriginAtBottomLeft;
         for (int eye = 0; eye < 2; ++eye)
         {
             ld.ColorTexture[eye] = mTextureChain;

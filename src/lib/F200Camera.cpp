@@ -147,13 +147,12 @@ CameraIntrinsics F200Camera::getIntrinsics(uint camera) const
 
 glm::mat4 F200Camera::getExtrinsics(uint camera1, uint camera2) const
 {
+    // Mapping a camera to itself
     if (camera1 == camera2)
-        THROW_ERROR("Cannot get extrinsics mapping a camera to itself");
+        return glm::mat4();
 
     glm::mat4 out;
     rs::extrinsics& extr = mDevice->get_extrinsics(mapCameraToStream(camera1), mapCameraToStream(camera2));
-    
-    // Rotation
     for (int row = 0; row < 3; row++)
     {
         for (int col = 0; col < 3; col++)
@@ -161,10 +160,7 @@ glm::mat4 F200Camera::getExtrinsics(uint camera1, uint camera2) const
             out[col][row] = extr.rotation[col * 3 + row];
         }
     }
-
-    // Translation
     out[3] = glm::vec4(extr.translation[0], extr.translation[1], extr.translation[2], 1.0f);
-
     return out;
 }
 

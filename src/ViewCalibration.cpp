@@ -123,13 +123,9 @@ public:
             glm::mat4 depthToColour = mRealsense->getExtrinsics(F200Camera::DEPTH, F200Camera::COLOUR);
 
             // Combined extrinsics mapping RS depth to ZED
-            glm::mat4 rsToZed = mRSColourToZedLeft * depthToColour;
-            if (i == 1) // Right eye
-            {
-                rsToZed = mZed->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT) * rsToZed;
-            }
+            glm::mat4 rsToZed = mZed->getExtrinsics(ZEDCamera::LEFT, i) *  mRSColourToZedLeft * depthToColour;
 
-            // TODO: Clean this code up, and port to CUDA?
+            // Transform each pixel from the original frame using the camera matrices above
             glm::vec3 point2d;
             glm::vec4 point3d;
             for (int row = 0; row < frame.rows; row++)

@@ -90,10 +90,12 @@ CameraIntrinsics ZEDCamera::getIntrinsics(uint camera) const
 
 glm::mat4 ZEDCamera::getExtrinsics(uint camera1, uint camera2) const
 {
-    if (camera1 == camera2)
-        THROW_ERROR("Cannot get extrinsics mapping a camera to itself");
     if (camera1 > 1 || camera2 > 1)
         THROW_ERROR("Camera must be ZEDCamera::LEFT or ZEDCamera::Right");
+
+    // Mapping a camera to itself
+    if (camera1 == camera2)
+        return glm::mat4();
 
     // Baseline maps right to left
     float baseline = mCamera->getParameters()->baseline * 1e-3f;

@@ -21,7 +21,7 @@ public:
     const void* getRawData(uint camera) override;
 
     CameraIntrinsics getIntrinsics(uint camera) const override;
-    CameraExtrinsics getExtrinsics(uint camera1, uint camera2) const override;
+    glm::mat4 getExtrinsics(uint camera1, uint camera2) const override;
     GLuint getTexture(uint camera) const override;
 
 private:

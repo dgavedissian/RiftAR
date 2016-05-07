@@ -55,8 +55,7 @@ public:
         cv::Mat R, T;
         fs["R"] >> R;
         fs["T"] >> T;
-        mRSColourToZedLeft.rotation = glm::inverse(convertCVToMat3<double>(R));
-        mRSColourToZedLeft.translation = -convertCVToVec3<double>(T);
+        mRSColourToZedLeft = buildExtrinsic(glm::inverse(convertCVToMat3<double>(R)), -convertCVToVec3<double>(T));
 
         // Create objects
         mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
@@ -121,16 +120,18 @@ public:
             glm::mat3 zedCalib = convertCVToMat3<double>(mRealsense->getIntrinsics(ZEDCamera::LEFT).cameraMatrix);
 
             // Extrinsics to map from depth to colour in the F200
-            CameraExtrinsics depthToColour = mRealsense->getExtrinsics(F200Camera::DEPTH, F200Camera::COLOUR);
+            glm::mat4 depthToColour = mRealsense->getExtrinsics(F200Camera::DEPTH, F200Camera::COLOUR);
 
             // Combined extrinsics mapping RS depth to ZED
-            CameraExtrinsics rsToZed = CameraExtrinsics::combine(depthToColour, mRSColourToZedLeft);
+            glm::mat4 rsToZed = mRSColourToZedLeft * depthToColour;
             if (i == 1) // Right eye
             {
-                rsToZed = CameraExtrinsics::combine(rsToZed, mZed->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT));
+                rsToZed = mZed->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT) * rsToZed;
             }
 
             // TODO: Clean this code up, and port to CUDA?
+            glm::vec3 point2d;
+            glm::vec4 point3d;
             for (int row = 0; row < frame.rows; row++)
             {
                 for (int col = 0; col < frame.cols; col++)
@@ -140,28 +141,33 @@ public:
                     if (depthPixel == 0)
                         continue;
                     float depth = (float)depthPixel * mRealsense->getDepthScale();
+                    float newDepth;
 
-                    // Top left of depth pixel
-                    glm::vec3 point((float)col - 0.5f, (float)row - 0.5f, 1.0);
-                    // Deproject pixel to point
-                    point = (invRSCalib * point) * depth;
+                    // Top left of depth pixel in homogenous coordinates (xd,yd,d)
+                    point2d = glm::vec3((float)col - 0.5f, (float)row - 0.5f, 1.0f) * depth;
+                    // Deproject pixel to point and convert to 4D homogenous coordinates
+                    point3d = glm::vec4(invRSCalib * point2d, 1.0);
                     // Map from Depth -> ZED
-                    point = rsToZed.rotation * point + rsToZed.translation;
-                    // Project point
-                    depth = point.z;
-                    point = zedCalib * (point / depth);
-                    cv::Point start(std::round(point.x), std::round(point.y));
+                    point3d = rsToZed * point3d;
+                    // Project point - conversion from vec3 to vec3 is equiv to multiplying by [I|0] matrix
+                    point2d = zedCalib * glm::vec3(point3d.x, point3d.y, point3d.z);
+                    // Record depth and convert to cartesian
+                    newDepth = point2d.z;
+                    point2d /= point2d.z;
+                    cv::Point start((int)std::round(point2d.x), (int)std::round(point2d.y));
 
-                    // Bottom right of depth pixel
-                    point = glm::vec3((float)col + 0.5, (float)row + 0.5f, 1.0);
-                    // Deproject pixel to point
-                    point = (invRSCalib * point) * depth;
+                    // Bottom right of depth pixel in homogenous coordinates (xd,yd,d)
+                    point2d = glm::vec3((float)col + 0.5f, (float)row + 0.5f, 1.0f) * depth;
+                    // Deproject pixel to point and convert to 4D homogenous coordinates
+                    point3d = glm::vec4(invRSCalib * point2d, 1.0);
                     // Map from Depth -> ZED
-                    point = rsToZed.rotation * point + rsToZed.translation;
-                    // Project point
-                    depth = point.z;
-                    point = zedCalib * (point / depth);
-                    cv::Point end(std::round(point.x), std::round(point.y));
+                    point3d = rsToZed * point3d;
+                    // Project point - conversion from vec3 to vec3 is equiv to multiplying by [I|0] matrix
+                    point2d = zedCalib * glm::vec3(point3d.x, point3d.y, point3d.z);
+                    // Record depth and convert to cartesian
+                    newDepth = point2d.z;
+                    point2d /= point2d.z;
+                    cv::Point end((int)std::round(point2d.x), (int)std::round(point2d.y));
 
                     // Swap start/end if appropriate
                     if (start.x > end.x)
@@ -178,7 +184,7 @@ public:
                     {
                         for (int y = start.y; y <= end.y; y++)
                         {
-                            writeDepth(transformedDepth, x, y, depth);
+                            writeDepth(transformedDepth, x, y, newDepth);
                         }
                     }
                 }
@@ -257,7 +263,7 @@ private:
     Shader* mModelShader;
 
     // Extrinsics for the camera pair
-    CameraExtrinsics mRSColourToZedLeft;
+    glm::mat4 mRSColourToZedLeft;
 };
 
 DEFINE_MAIN(ViewCalibration);

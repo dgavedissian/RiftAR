@@ -88,23 +88,21 @@ CameraIntrinsics ZEDCamera::getIntrinsics(uint camera) const
     return mIntrinsics;
 }
 
-CameraExtrinsics ZEDCamera::getExtrinsics(uint camera1, uint camera2) const
+glm::mat4 ZEDCamera::getExtrinsics(uint camera1, uint camera2) const
 {
     if (camera1 == camera2)
         THROW_ERROR("Cannot get extrinsics mapping a camera to itself");
     if (camera1 > 1 || camera2 > 1)
         THROW_ERROR("Camera must be ZEDCamera::LEFT or ZEDCamera::Right");
 
+    // Baseline maps right to left
     float baseline = mCamera->getParameters()->baseline * 1e-3f;
-    CameraExtrinsics out;
-    out.rotation = glm::mat3(1.0f);
-    out.translation = glm::vec3(-baseline, 0.0f, 0.0f);
 
-    // Right to left
-    if (camera2 == 0)
-        out.translation.x = -out.translation.x;
+    // Left to right
+    if (camera2 == ZEDCamera::RIGHT)
+        baseline = -baseline;
 
-    return out;
+    return glm::translate(glm::mat4(), glm::vec3(baseline, 0.0f, 0.0f));
 }
 
 GLuint ZEDCamera::getTexture(uint camera) const

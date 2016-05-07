@@ -14,13 +14,10 @@ struct CameraIntrinsics
     std::vector<double> coeffs;
 };
 
-struct CameraExtrinsics
+inline glm::mat4 buildExtrinsic(glm::mat3& rotation, glm::vec3& translation)
 {
-    glm::mat3 rotation;
-    glm::vec3 translation;
-
-    static CameraExtrinsics combine(CameraExtrinsics& a, CameraExtrinsics& b);
-};
+    return glm::translate(glm::mat4(rotation), translation);
+}
 
 class CameraSource
 {
@@ -37,7 +34,7 @@ public:
 
     // Accessors
     virtual CameraIntrinsics getIntrinsics(uint camera) const = 0;
-    virtual CameraExtrinsics getExtrinsics(uint camera1, uint camera2) const = 0;
+    virtual glm::mat4 getExtrinsics(uint camera1, uint camera2) const = 0;
     virtual GLuint getTexture(uint camera) const = 0;
 
     uint getWidth(uint camera) const;

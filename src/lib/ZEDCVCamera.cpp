@@ -66,9 +66,9 @@ CameraIntrinsics ZEDCVCamera::getIntrinsics(uint camera) const
     return CameraIntrinsics();
 }
 
-CameraExtrinsics ZEDCVCamera::getExtrinsics(uint camera1, uint camera2) const
+glm::mat4 ZEDCVCamera::getExtrinsics(uint camera1, uint camera2) const
 {
-    return CameraExtrinsics();
+    return glm::mat4();
 }
 
 GLuint ZEDCVCamera::getTexture(uint camera) const

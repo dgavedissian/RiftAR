@@ -3,7 +3,7 @@
 
 #include <limits>
 
-//#define USE_DEPTH_ALIGNED_TO_COLOUR
+#define USE_DEPTH_ALIGNED_TO_COLOUR
 
 F200Camera::F200Camera(uint width, uint height, uint frameRate, uint streams) :
     mEnabledStreams(streams)
@@ -142,11 +142,22 @@ const void* F200Camera::getRawData(uint camera)
 
 CameraIntrinsics F200Camera::getIntrinsics(uint camera) const
 {
+#ifdef USE_DEPTH_ALIGNED_TO_COLOUR
+    if (camera == DEPTH)
+        return buildIntrinsics(mDevice->get_stream_intrinsics(rs::stream::color));
+#endif
     return buildIntrinsics(mDevice->get_stream_intrinsics(mapCameraToStream(camera)));
 }
 
 glm::mat4 F200Camera::getExtrinsics(uint camera1, uint camera2) const
 {
+#ifdef USE_DEPTH_ALIGNED_TO_COLOUR
+    if (camera1 == DEPTH)
+        camera1 = COLOUR;
+    if (camera2 == DEPTH)
+        camera2 = COLOUR;
+#endif
+
     // Mapping a camera to itself
     if (camera1 == camera2)
         return glm::mat4();

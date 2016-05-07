@@ -200,7 +200,7 @@ CameraIntrinsics F200Camera::buildIntrinsics(rs::intrinsics& intr) const
     out.cameraMatrix.at<double>(0, 0) = intr.fx;
     out.cameraMatrix.at<double>(1, 1) = intr.fy;
     out.cameraMatrix.at<double>(0, 2) = intr.ppx;
-    out.cameraMatrix.at<double>(1, 2) = intr.ppx;
+    out.cameraMatrix.at<double>(1, 2) = intr.ppx; // Why must this be x?
     out.coeffs.insert(out.coeffs.end(), intr.coeffs, intr.coeffs + 5);
 
     float pi = (float)acos(-1.0);

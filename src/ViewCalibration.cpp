@@ -123,7 +123,7 @@ public:
             // Read parameters
             glm::mat3 rsCalib = convertCVToMat3<double>(mRealsense->getIntrinsics(F200Camera::DEPTH).cameraMatrix);
             glm::mat3 invRSCalib = glm::inverse(rsCalib);
-            glm::mat3 zedCalib = convertCVToMat3<double>(mRealsense->getIntrinsics(ZEDCamera::LEFT).cameraMatrix);
+            glm::mat3 zedCalib = convertCVToMat3<double>(mZed->getIntrinsics(ZEDCamera::LEFT).cameraMatrix);
 
             // Extrinsics to map from depth to colour in the F200
             glm::mat4 depthToColour = mRealsense->getExtrinsics(F200Camera::DEPTH, F200Camera::COLOUR);

@@ -11,5 +11,5 @@ uniform mat4 modelViewProjectionMatrix;
 void main()
 {
     gl_Position = modelViewProjectionMatrix * vec4(position, 1.0);
-    oNormal = (modelMatrix * vec4(normal, 0.0)).xyz;
+    oNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
 }

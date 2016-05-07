@@ -58,16 +58,21 @@ public:
         mRSColourToZedLeft = buildExtrinsic(glm::inverse(convertCVToMat3<double>(R)), -convertCVToVec3<double>(T));
 
         // Create objects
+        float znear = 0.01f;
+        float zfar = 10.0f;
         mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
         mFullscreenShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
         mFullscreenWithDepthShader = new Shader("../media/quad.vs", "../media/quad_inv_depth.fs");
         mFullscreenWithDepthShader->bind();
-        mFullscreenWithDepthShader->setUniform<int>("rgbCameraImage", 0);
-        mFullscreenWithDepthShader->setUniform<int>("depthCameraImage", 1);
+        mFullscreenWithDepthShader->setUniform("rgbCameraImage", 0);
+        mFullscreenWithDepthShader->setUniform("depthCameraImage", 1);
+        mFullscreenWithDepthShader->setUniform("znear", znear);
+        mFullscreenWithDepthShader->setUniform("zfar", zfar);
+        mFullscreenWithDepthShader->setUniform("depthScale", USHRT_MAX * mRealsense->getDepthScale());
 
-        glm::mat4 model = glm::translate(glm::mat4(), glm::vec3(-0.1f, -0.1f, -0.4f));
+        glm::mat4 model = glm::scale(glm::translate(glm::mat4(), glm::vec3(-0.4f, -0.4f, -1.2f)), glm::vec3(3.0f));
         glm::mat4 view;
-        glm::mat4 projection = glm::perspective(glm::radians(75.0f), 640.0f / 480.0f, 0.01f, 10.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(75.0f), 640.0f / 480.0f, znear, zfar);
         mModel = new STLModel("../media/meshes/skull.stl");
         mModelShader = new Shader("../media/model.vs", "../media/model.fs");
         mModelShader->bind();
@@ -76,6 +81,7 @@ public:
 
         // Enable culling and depth testing
         glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
     }
 
     ~ViewCalibration()
@@ -90,7 +96,7 @@ public:
 
     void render() override
     {
-        glClear(GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         cv::Mat frame, transformedDepth;
 
@@ -194,7 +200,6 @@ public:
 
             // Display
             glViewport(i == 0 ? 0 : getSize().width / 2, 0, getSize().width / 2, getSize().height);
-            glDisable(GL_DEPTH_TEST);
             if (!mShowColour)
             {
                 // Show depth as a texture
@@ -214,7 +219,6 @@ public:
                 mQuad->render();
 
                 // Display the mesh
-                glEnable(GL_DEPTH_TEST);
                 mModelShader->bind();
                 mModel->render();
             }

@@ -121,7 +121,8 @@ public:
             }
 
             // Read parameters
-            glm::mat3 rsCalib = convertCVToMat3<double>(mRealsense->getIntrinsics(F200Camera::DEPTH).cameraMatrix);
+            CameraIntrinsics& depthIntr = mRealsense->getIntrinsics(F200Camera::DEPTH);
+            glm::mat3 rsCalib = convertCVToMat3<double>(depthIntr.cameraMatrix);
             glm::mat3 invRSCalib = glm::inverse(rsCalib);
             glm::mat3 zedCalib = convertCVToMat3<double>(mZed->getIntrinsics(ZEDCamera::LEFT).cameraMatrix);
 
@@ -145,10 +146,12 @@ public:
                     float depth = (float)depthPixel * mRealsense->getDepthScale();
                     float newDepth;
 
-                    // Top left of depth pixel in homogenous coordinates (xd,yd,d)
-                    point2d = glm::vec3((float)col - 0.5f, (float)row - 0.5f, 1.0f) * depth;
-                    // Deproject pixel to point and convert to 4D homogenous coordinates
-                    point3d = glm::vec4(invRSCalib * point2d, 1.0);
+                    // Top left of depth pixel
+                    point2d = glm::vec3((float)col - 0.5f, (float)row - 0.5f, 1.0f);
+                    // De-project pixel to point and convert to 4D homogeneous coordinates
+                    point2d = invRSCalib * point2d;
+                    undistortRealsense(point2d, depthIntr.coeffs);
+                    point3d = glm::vec4(depth * point2d, 1.0f);
                     // Map from Depth -> ZED
                     point3d = rsToZed * point3d;
                     // Project point - conversion from vec3 to vec3 is equiv to multiplying by [I|0] matrix
@@ -158,10 +161,12 @@ public:
                     point2d /= point2d.z;
                     cv::Point start((int)std::round(point2d.x), (int)std::round(point2d.y));
 
-                    // Bottom right of depth pixel in homogenous coordinates (xd,yd,d)
-                    point2d = glm::vec3((float)col + 0.5f, (float)row + 0.5f, 1.0f) * depth;
-                    // Deproject pixel to point and convert to 4D homogenous coordinates
-                    point3d = glm::vec4(invRSCalib * point2d, 1.0);
+                    // Bottom right of depth pixel
+                    point2d = glm::vec3((float)col + 0.5f, (float)row + 0.5f, 1.0f);
+                    // De-project pixel to point and convert to 4D homogeneous coordinates
+                    point2d = invRSCalib * point2d;
+                    undistortRealsense(point2d, depthIntr.coeffs);
+                    point3d = glm::vec4(depth * point2d, 1.0f);
                     // Map from Depth -> ZED
                     point3d = rsToZed * point3d;
                     // Project point - conversion from vec3 to vec3 is equiv to multiplying by [I|0] matrix
@@ -246,6 +251,16 @@ public:
         {
             out.at<unsigned short>(y, x) = newDepth;
         }
+    }
+
+    void undistortRealsense(glm::vec3& point, const std::vector<double>& coeffs)
+    {
+        float r2 = point.x * point.x + point.y * point.y;
+        float f = 1.0f + coeffs[0] * r2 + coeffs[1] * r2 * r2 + coeffs[4] * r2 * r2 * r2;
+        float ux = point.x * f + 2.0f * coeffs[2] * point.x * point.y + coeffs[3] * (r2 + 2.0f * point.x * point.x);
+        float uy = point.y * f + 2.0f * coeffs[3] * point.x * point.y + coeffs[2] * (r2 + 2.0f * point.y * point.y);
+        point.x = ux;
+        point.y = uy;
     }
 
 private:

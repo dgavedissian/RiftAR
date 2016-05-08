@@ -3,8 +3,6 @@
 
 #include <limits>
 
-#define USE_DEPTH_ALIGNED_TO_COLOUR
-
 F200Camera::F200Camera(uint width, uint height, uint frameRate, uint streams) :
     mEnabledStreams(streams)
 {
@@ -133,31 +131,16 @@ void F200Camera::copyFrameIntoCVImage(uint camera, cv::Mat* mat)
 
 const void* F200Camera::getRawData(uint camera)
 {
-#ifdef USE_DEPTH_ALIGNED_TO_COLOUR
-    if (camera == DEPTH)
-        return mDevice->get_frame_data(rs::stream::depth_aligned_to_color);
-#endif
     return mDevice->get_frame_data(mapCameraToStream(camera));
 }
 
 CameraIntrinsics F200Camera::getIntrinsics(uint camera) const
 {
-#ifdef USE_DEPTH_ALIGNED_TO_COLOUR
-    if (camera == DEPTH)
-        return buildIntrinsics(mDevice->get_stream_intrinsics(rs::stream::color));
-#endif
     return buildIntrinsics(mDevice->get_stream_intrinsics(mapCameraToStream(camera)));
 }
 
 glm::mat4 F200Camera::getExtrinsics(uint camera1, uint camera2) const
 {
-#ifdef USE_DEPTH_ALIGNED_TO_COLOUR
-    if (camera1 == DEPTH)
-        camera1 = COLOUR;
-    if (camera2 == DEPTH)
-        camera2 = COLOUR;
-#endif
-
     // Mapping a camera to itself
     if (camera1 == camera2)
         return glm::mat4();
@@ -200,7 +183,7 @@ CameraIntrinsics F200Camera::buildIntrinsics(rs::intrinsics& intr) const
     out.cameraMatrix.at<double>(0, 0) = intr.fx;
     out.cameraMatrix.at<double>(1, 1) = intr.fy;
     out.cameraMatrix.at<double>(0, 2) = intr.ppx;
-    out.cameraMatrix.at<double>(1, 2) = intr.ppx; // Why must this be x?
+    out.cameraMatrix.at<double>(1, 2) = intr.ppy;
     out.coeffs.insert(out.coeffs.end(), intr.coeffs, intr.coeffs + 5);
 
     float pi = (float)acos(-1.0);

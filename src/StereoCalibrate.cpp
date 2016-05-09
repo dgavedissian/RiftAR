@@ -13,7 +13,7 @@ public:
 
     void init() override
     {
-        mZed = new ZEDCamera();
+        mZed = new ZEDCamera(sl::zed::HD720, 60);
         mRealsense = new F200Camera(640, 480, 60, F200Camera::ENABLE_COLOUR);
 
         // Create OpenGL images to visualise the calibration

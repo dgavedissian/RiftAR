@@ -32,20 +32,20 @@ class ViewCalibration : public App
 {
 public:
     ViewCalibration() :
-        mShowColour(true)
+        mShowColour(false)
     {
     }
 
     void init() override
     {
-        mZed = new ZEDCamera();
+        mZed = new ZEDCamera(sl::zed::HD720, 60);
         mRealsense = new F200Camera(640, 480, 60, F200Camera::ENABLE_COLOUR | F200Camera::ENABLE_DEPTH);
 
         // Create OpenGL images to view the depth stream
         glGenTextures(1, &mDepth);
         glBindTexture(GL_TEXTURE_2D, mDepth);
         TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
-            mRealsense->getWidth(F200Camera::COLOUR), mRealsense->getHeight(F200Camera::COLOUR),
+            mZed->getWidth(ZEDCamera::LEFT), mZed->getHeight(ZEDCamera::LEFT),
             0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -111,10 +111,10 @@ public:
             mRealsense->copyFrameIntoCVImage(F200Camera::DEPTH, &frame);
 
             // Create the output depth frame and initialise to maximum depth. This is required for the morphology filters
-            transformedDepth = cv::Mat::zeros(cv::Size(frame.cols, frame.rows), CV_16UC1);
-            for (int c = 0; c < frame.cols; c++)
+            transformedDepth = cv::Mat::zeros(cv::Size(mZed->getWidth(ZEDCamera::LEFT), mZed->getHeight(ZEDCamera::RIGHT)), CV_16UC1);
+            for (int c = 0; c < transformedDepth.cols; c++)
             {
-                for (int r = 0; r < frame.rows; r++)
+                for (int r = 0; r < transformedDepth.rows; r++)
                 {
                     transformedDepth.at<unsigned short>(r, c) = 0xffff;
                 }
@@ -183,7 +183,7 @@ public:
                         std::swap(start.y, end.y);
 
                     // Reject pixels outside the target texture
-                    if (start.x < 0 || start.y < 0 || end.x >= frame.cols || end.y >= frame.rows)
+                    if (start.x < 0 || start.y < 0 || end.x >= transformedDepth.cols || end.y >= transformedDepth.rows)
                         continue;
 
                     // Write the rectangle defined by the corners of the depth pixel to the output image
@@ -200,7 +200,7 @@ public:
             // Copy depth data
             glBindTexture(GL_TEXTURE_2D, mDepth);
             TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-                mRealsense->getWidth(F200Camera::COLOUR), mRealsense->getHeight(F200Camera::COLOUR),
+                mZed->getWidth(ZEDCamera::LEFT), mZed->getHeight(ZEDCamera::LEFT),
                 GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, transformedDepth.ptr()));
 
             // Display
@@ -225,7 +225,7 @@ public:
 
                 // Display the mesh
                 mModelShader->bind();
-                mModel->render();
+                //mModel->render();
             }
         }
     }

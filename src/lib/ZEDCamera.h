@@ -7,7 +7,7 @@
 class ZEDCamera : public CameraSource
 {
 public:
-    ZEDCamera();
+    ZEDCamera(sl::zed::ZEDResolution_mode resolution, int fps);
     ~ZEDCamera();
 
     enum

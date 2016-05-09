@@ -9,6 +9,8 @@
 #include <OVR_CAPI_GL.h>
 #include <Extras/OVR_Math.h>
 
+#define RIFT_DISPLAY
+
 class RiftAR : public App
 {
 public:
@@ -19,6 +21,80 @@ public:
 
     void init() override
     {
+        // Set up the cameras
+        mZed = new ZEDCamera(sl::zed::HD720, 0);
+        mRealsense = new F200Camera(640, 480, 60, F200Camera::ENABLE_DEPTH);
+
+#ifdef RIFT_DISPLAY
+        // Set up Oculus
+        setupOVR();
+
+        // Calculate correct dimensions
+        float ovrFovH = atanf(mHmdDesc.DefaultEyeFov[0].LeftTan) + atanf(mHmdDesc.DefaultEyeFov[0].RightTan);
+        float ovrFovV = atanf(mHmdDesc.DefaultEyeFov[0].UpTan) + atanf(mHmdDesc.DefaultEyeFov[0].DownTan);
+        float width = mZed->getIntrinsics(ZEDCamera::LEFT).fovH / ovrFovH;
+        float height = mZed->getIntrinsics(ZEDCamera::LEFT).fovV / ovrFovV;
+
+        // Create rendering primitives
+        mQuad = new Rectangle2D(glm::vec2(0.5f - width * 0.5f, 0.5f - height * 0.5f), glm::vec2(0.5f + width * 0.5f, 0.5f + height * 0.5f));
+        mQuadShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
+        mMirrorShader = new Shader("../media/quad.vs", "../media/quad.fs");
+#else
+        // Create rendering primitives
+        mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
+        mQuadShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
+#endif
+    }
+
+    ~RiftAR()
+    {
+        delete mQuad;
+        delete mQuadShader;
+
+        delete mZed;
+        delete mRealsense;
+
+#ifdef RIFT_DISPLAY
+        delete mMirrorShader;
+        shutdownOVR();
+#endif
+    }
+
+    void render() override
+    {
+        // Update the textures
+        mZed->capture();
+        mZed->updateTextures();
+
+#ifdef RIFT_DISPLAY
+        renderToRift();
+#else
+        // Render each eye
+        mQuadShader->bind();
+        for (int eye = 0; eye < 2; eye++)
+        {
+            // Set the left or right vertical half of the buffer as the viewport
+            glViewport(eye == 0 ? 0 : getSize().width / 2, 0, getSize().width / 2, getSize().height);
+
+            // Bind the left or right ZED image
+            glBindTexture(GL_TEXTURE_2D, mZed->getTexture(eye));
+            mQuad->render();
+        }
+#endif
+    }
+
+    void keyEvent(int key, int scancode, int action, int mods) override
+    {
+    }
+
+    cv::Size getSize() override
+    {
+        return cv::Size(1600, 600);
+    }
+
+    // Rift Interface
+    void setupOVR()
+    {
         ovrResult result = ovr_Initialize(nullptr);
         if (OVR_FAILURE(result))
             THROW_ERROR("Failed to initialise LibOVR");
@@ -28,11 +104,7 @@ public:
         if (OVR_FAILURE(result))
             THROW_ERROR("Oculus Rift not detected");
 
-        // Set up the cameras
-        mZed = new ZEDCamera(sl::zed::HD1080, 30);
-        mRealsense = new F200Camera(640, 480, 60, F200Camera::ENABLE_DEPTH);
-
-        // Get the texture sizes of Oculus eyes
+        // Get the texture sizes of the rift eyes
         mHmdDesc = ovr_GetHmdDesc(mSession);
         ovrSizei textureSize0 = ovr_GetFovTextureSize(mSession, ovrEye_Left, mHmdDesc.DefaultEyeFov[0], 1.0f);
         ovrSizei textureSize1 = ovr_GetFovTextureSize(mSession, ovrEye_Right, mHmdDesc.DefaultEyeFov[1], 1.0f);
@@ -88,36 +160,16 @@ public:
         if (!OVR_SUCCESS(result))
             THROW_ERROR("Failed to create the mirror texture");
         ovr_GetMirrorTextureBufferGL(mSession, mMirrorTexture, &mMirrorTextureId);
-
-        // Calculate correct dimensions
-        float ovrFovH = atanf(mHmdDesc.DefaultEyeFov[0].LeftTan) + atanf(mHmdDesc.DefaultEyeFov[0].RightTan);
-        float ovrFovV = atanf(mHmdDesc.DefaultEyeFov[0].UpTan) + atanf(mHmdDesc.DefaultEyeFov[0].DownTan);
-        float ratioWidth = mZed->getIntrinsics(ZEDCamera::LEFT).fovH / ovrFovH;
-        float ratioHeight = mZed->getIntrinsics(ZEDCamera::LEFT).fovV / ovrFovV;
-        float width = 1.0f * ratioWidth;
-        float height = 1.0f * ratioHeight;
-
-        // Create rendering primitives
-        mQuad = new Rectangle2D(glm::vec2(0.5f - width * 0.5f, 0.5f - height * 0.5f), glm::vec2(0.5f + width * 0.5f, 0.5f + height * 0.5f));
-        mQuadShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
-        mMirrorShader = new Shader("../media/quad.vs", "../media/quad.fs");
     }
 
-    ~RiftAR()
+    void shutdownOVR()
     {
-        delete mQuad;
-        delete mQuadShader;
-        delete mMirrorShader;
-
-        delete mZed;
-        delete mRealsense;
-
         ovr_Destroy(mSession);
         ovr_Shutdown();
     }
 
-    void render() override
-    {        
+    void renderToRift()
+    {
         // Get texture swap index where we must draw our frame
         GLuint curTexId;
         int curIndex;
@@ -136,10 +188,6 @@ public:
         ovrPosef eyeRenderPose[2];
         double sensorSampleTime;
         ovr_GetEyePoses(mSession, mFrameIndex, ovrTrue, hmdToEyeOffset, eyeRenderPose, &sensorSampleTime);
-
-        // Update the textures
-        mZed->capture();
-        mZed->updateTextures();
 
         // Bind the frame buffer
         glBindFramebuffer(GL_FRAMEBUFFER, mFramebufferId);
@@ -162,7 +210,7 @@ public:
             mQuad->render();
         }
 
-        // Commit changes to the textures so they get picked up frame
+        // Commit changes to the textures so they get picked up in the next frame
         ovr_CommitTextureSwapChain(mSession, mTextureChain);
 
         // Submit the frame
@@ -187,22 +235,20 @@ public:
         glBindTexture(GL_TEXTURE_2D, mMirrorTextureId);
         mMirrorShader->bind();
         mQuad->render();
-        return;
 
         // A frame has been completed
         mFrameIndex++;
     }
 
-    void keyEvent(int key, int scancode, int action, int mods) override
-    {
-    }
-
-    cv::Size getSize() override
-    {
-        return cv::Size(1280, 720);
-    }
-
 private:
+    Rectangle2D* mQuad;
+    Shader* mQuadShader;
+    Shader* mMirrorShader;
+
+    ZEDCamera* mZed;
+    F200Camera* mRealsense;
+
+    // OVR stuff
     ovrSession mSession;
     ovrGraphicsLuid mLuid;
     ovrHmdDesc mHmdDesc;
@@ -212,13 +258,6 @@ private:
     GLuint mDepthBufferId;
     ovrMirrorTexture mMirrorTexture;
     GLuint mMirrorTextureId;
-
-    Rectangle2D* mQuad;
-    Shader* mQuadShader;
-    Shader* mMirrorShader;
-
-    ZEDCamera* mZed;
-    F200Camera* mRealsense;
 
     int mFrameIndex;
 

@@ -3,18 +3,20 @@
 #include "lib/ZEDCamera.h"
 
 #include "lib/Rectangle2D.h"
+#include "lib/STLModel.h"
 #include "lib/Shader.h"
 
 #include <OVR_CAPI.h>
 #include <OVR_CAPI_GL.h>
 #include <Extras/OVR_Math.h>
 
-#define RIFT_DISPLAY
+//#define RIFT_DISPLAY
 
 class RiftAR : public App
 {
 public:
     RiftAR() :
+        mShowColour(false),
         mFrameIndex(0)
     {
     }
@@ -24,6 +26,40 @@ public:
         // Set up the cameras
         mZed = new ZEDCamera(sl::zed::HD720, 0);
         mRealsense = new F200Camera(640, 480, 60, F200Camera::ENABLE_DEPTH);
+
+        // Create OpenGL images to view the depth stream
+        glGenTextures(2, mDepthTexture);
+        for (int i = 0; i < 2; i++)
+        {
+            glBindTexture(GL_TEXTURE_2D, mDepthTexture[i]);
+            TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+                mZed->getWidth(ZEDCamera::LEFT), mZed->getHeight(ZEDCamera::LEFT),
+                0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, nullptr));
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
+
+        // Read parameters
+        CameraIntrinsics& depthIntr = mRealsense->getIntrinsics(F200Camera::DEPTH);
+        mRealsenseCalibInverse = glm::inverse(convertCVToMat3<double>(depthIntr.cameraMatrix));
+        mRealsenseDistortCoeffs = depthIntr.coeffs;
+        mZedCalib = convertCVToMat3<double>(mZed->getIntrinsics(ZEDCamera::LEFT).cameraMatrix);
+
+        // Read extrinsics parameters that map the ZED to the realsense colour camera, and invert
+        // to map in the opposite direction
+        cv::FileStorage fs("../stereo-params.xml", cv::FileStorage::READ);
+        cv::Mat rotationMatrix, translation;
+        fs["R"] >> rotationMatrix;
+        fs["T"] >> translation;
+        glm::mat4 realsenseColourToZedLeft = buildExtrinsic(
+            glm::inverse(convertCVToMat3<double>(rotationMatrix)),
+            -convertCVToVec3<double>(translation));
+
+        // Extrinsics to map from depth to colour in the F200
+        glm::mat4 depthToColour = mRealsense->getExtrinsics(F200Camera::DEPTH, F200Camera::COLOUR);
+
+        // Combined extrinsics mapping realsense depth to ZED left
+        mRealsenseToZedLeft = realsenseColourToZedLeft * depthToColour;
 
 #ifdef RIFT_DISPLAY
         // Set up Oculus
@@ -36,49 +72,97 @@ public:
         float height = mZed->getIntrinsics(ZEDCamera::LEFT).fovV / ovrFovV;
 
         // Create rendering primitives
-        mQuad = new Rectangle2D(glm::vec2(0.5f - width * 0.5f, 0.5f - height * 0.5f), glm::vec2(0.5f + width * 0.5f, 0.5f + height * 0.5f));
-        mQuadShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
-        mMirrorShader = new Shader("../media/quad.vs", "../media/quad.fs");
+        mQuad = new Rectangle2D(
+            glm::vec2(0.5f - width * 0.5f, 0.5f - height * 0.5f),
+            glm::vec2(0.5f + width * 0.5f, 0.5f + height * 0.5f));
+        mFullscreenShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
+        mRiftMirrorShader = new Shader("../media/quad.vs", "../media/quad.fs");
 #else
         // Create rendering primitives
         mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
-        mQuadShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
+        mFullscreenShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
 #endif
+        // Create objects
+        float znear = 0.01f;
+        float zfar = 10.0f;
+        mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
+        mFullscreenWithDepthShader = new Shader("../media/quad.vs", "../media/quad_inv_depth.fs");
+        mFullscreenWithDepthShader->bind();
+        mFullscreenWithDepthShader->setUniform("rgbCameraImage", 0);
+        mFullscreenWithDepthShader->setUniform("depthCameraImage", 1);
+        mFullscreenWithDepthShader->setUniform("znear", znear);
+        mFullscreenWithDepthShader->setUniform("zfar", zfar);
+        mFullscreenWithDepthShader->setUniform("depthScale", USHRT_MAX * mRealsense->getDepthScale());
+
+        glm::mat4 model = glm::scale(glm::translate(glm::mat4(), glm::vec3(-0.4f, -0.4f, -1.2f)), glm::vec3(3.0f));
+        glm::mat4 view;
+        glm::mat4 projection = glm::perspective(glm::radians(75.0f), 640.0f / 480.0f, znear, zfar);
+        mModel = new STLModel("../media/meshes/skull.stl");
+        mModelShader = new Shader("../media/model.vs", "../media/model.fs");
+        mModelShader->bind();
+        mModelShader->setUniform("modelViewProjectionMatrix", projection * model);
+        mModelShader->setUniform("modelMatrix", model);
+
+        // Enable culling and depth testing
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
     }
 
     ~RiftAR()
     {
         delete mQuad;
-        delete mQuadShader;
+        delete mFullscreenShader;
 
         delete mZed;
         delete mRealsense;
 
 #ifdef RIFT_DISPLAY
-        delete mMirrorShader;
+        delete mRiftMirrorShader;
         shutdownOVR();
 #endif
     }
 
     void render() override
     {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
         // Update the textures
         mZed->capture();
         mZed->updateTextures();
+        mRealsense->capture();
+
+        // Build depth texture
+        updateDepthTextures();
 
 #ifdef RIFT_DISPLAY
+        // Render to the rift headset
         renderToRift();
+
+        // Draw the mirror texture
+        glViewport(0, 0, getSize().width, getSize().height);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindTexture(GL_TEXTURE_2D, mMirrorTextureId);
+        mRiftMirrorShader->bind();
+        mQuad->render();
 #else
         // Render each eye
-        mQuadShader->bind();
-        for (int eye = 0; eye < 2; eye++)
+        for (int i = 0; i < 2; i++)
         {
-            // Set the left or right vertical half of the buffer as the viewport
-            glViewport(eye == 0 ? 0 : getSize().width / 2, 0, getSize().width / 2, getSize().height);
-
-            // Bind the left or right ZED image
-            glBindTexture(GL_TEXTURE_2D, mZed->getTexture(eye));
-            mQuad->render();
+            glViewport(i == 0 ? 0 : getSize().width / 2, 0, getSize().width / 2, getSize().height);
+            if (mShowColour)
+            {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, mZed->getTexture(i));
+                mFullscreenShader->bind();
+                mQuad->render();
+            }
+            else
+            {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, mDepthTexture[i]);
+                mFullscreenShader->bind();
+                mQuad->render();
+            }
         }
 #endif
     }
@@ -90,6 +174,119 @@ public:
     cv::Size getSize() override
     {
         return cv::Size(1600, 600);
+    }
+
+    // Distortion
+    void updateDepthTextures()
+    {
+        cv::Mat frame, warpedFrame;
+        for (int i = 0; i < 2; i++)
+        {
+            mRealsense->copyFrameIntoCVImage(F200Camera::DEPTH, &frame);
+
+            // Create the output depth frame and initialise to maximum depth
+            warpedFrame = cv::Mat::zeros(cv::Size(mZed->getWidth(ZEDCamera::LEFT), mZed->getHeight(ZEDCamera::RIGHT)), CV_16UC1);
+            for (int c = 0; c < warpedFrame.cols; c++)
+            {
+                for (int r = 0; r < warpedFrame.rows; r++)
+                    warpedFrame.at<uint16_t>(r, c) = 0xffff;
+            }
+
+            // Transform each pixel from the original frame using the camera matrices above
+            glm::vec2 point;
+            glm::mat4 realsenseToCurrentZed = mZed->getExtrinsics(ZEDCamera::LEFT, i) * mRealsenseToZedLeft;
+            for (int row = 0; row < frame.rows; row++)
+            {
+                for (int col = 0; col < frame.cols; col++)
+                {
+                    // Read depth
+                    uint16_t depthPixel = frame.at<uint16_t>(row, col);
+                    if (depthPixel == 0)
+                        continue;
+                    float depth = (float)depthPixel * mRealsense->getDepthScale();
+                    float newDepth;
+
+                    // Top left of depth pixel
+                    point = glm::vec2((float)col - 0.5f, (float)row - 0.5f);
+                    newDepth = reprojectRealsenseToZed(point, depth, realsenseToCurrentZed);
+                    cv::Point start((int)std::round(point.x), (int)std::round(point.y));
+
+                    // Bottom right of depth pixel
+                    point = glm::vec2((float)col + 0.5f, (float)row + 0.5f);
+                    newDepth = reprojectRealsenseToZed(point, depth, realsenseToCurrentZed);
+                    cv::Point end((int)std::round(point.x), (int)std::round(point.y));
+
+                    // Swap start/end if appropriate
+                    if (start.x > end.x)
+                        std::swap(start.x, end.x);
+                    if (start.y > end.y)
+                        std::swap(start.y, end.y);
+
+                    // Reject pixels outside the target texture
+                    if (start.x < 0 || start.y < 0 || end.x >= warpedFrame.cols || end.y >= warpedFrame.rows)
+                        continue;
+
+                    // Write the rectangle defined by the corners of the depth pixel to the output image
+                    for (int x = start.x; x <= end.x; x++)
+                    {
+                        for (int y = start.y; y <= end.y; y++)
+                            writeDepth(warpedFrame, x, y, newDepth);
+                    }
+                }
+            }
+
+            // Copy depth data
+            glBindTexture(GL_TEXTURE_2D, mDepthTexture[i]);
+            TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+                mZed->getWidth(ZEDCamera::LEFT), mZed->getHeight(ZEDCamera::LEFT),
+                GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, warpedFrame.ptr()));
+        }
+    }
+
+    float reprojectRealsenseToZed(glm::vec2& point, float depth, const glm::mat4& extrinsics)
+    {
+        glm::vec3 point2d;
+        glm::vec4 point3d;
+
+        point2d = glm::vec3(point, 1.0f);
+
+        // De-project pixel to point and convert to 4D homogeneous coordinates
+        point2d = mRealsenseCalibInverse * point2d;
+        undistortRealsense(point2d, mRealsenseDistortCoeffs);
+        point3d = glm::vec4(depth * point2d, 1.0f);
+
+        // Map from Depth -> ZED
+        point3d = extrinsics * point3d;
+
+        // Project point - conversion from vec3 to vec3 is equiv to multiplying by [I|0] matrix
+        point2d = mZedCalib * glm::vec3(point3d.x, point3d.y, point3d.z);
+
+        // Record depth and convert to cartesian
+        point.x = point2d.x / point2d.z;
+        point.y = point2d.y / point2d.z;
+        return point2d.z;
+    }
+
+    void writeDepth(cv::Mat& out, int x, int y, float depth)
+    {
+        uint16_t oldDepth = out.at<uint16_t>(y, x);
+        uint16_t newDepth = (uint16_t)(depth / mRealsense->getDepthScale());
+
+        // Basic z-buffering here...
+        if (newDepth < oldDepth)
+        {
+            out.at<uint16_t>(y, x) = newDepth;
+        }
+    }
+
+    void undistortRealsense(glm::vec3& point, const std::vector<double>& coeffs)
+    {
+        float r2 = point.x * point.x + point.y * point.y;
+        float f = 1.0f + coeffs[0] * r2 + coeffs[1] * r2 * r2 + coeffs[4] * r2 * r2 * r2;
+        float ux = point.x * f + 2.0f * coeffs[2] * point.x * point.y + coeffs[3] * (r2 + 2.0f * point.x * point.x);
+        float uy = point.y * f + 2.0f * coeffs[3] * point.x * point.y + coeffs[2] * (r2 + 2.0f * point.y * point.y);
+        point.x = ux;
+        point.y = uy;
     }
 
     // Rift Interface
@@ -199,14 +396,14 @@ public:
         glClearColor(0, 0, 0, 1);
 
         // Render for each Oculus eye the equivalent ZED image
-        mQuadShader->bind();
-        for (int eye = 0; eye < 2; eye++)
+        mFullscreenShader->bind();
+        for (int i = 0; i < 2; i++)
         {
             // Set the left or right vertical half of the buffer as the viewport
-            glViewport(eye == ovrEye_Left ? 0 : mBufferSize.w / 2, 0, mBufferSize.w / 2, mBufferSize.h);
+            glViewport(i == ovrEye_Left ? 0 : mBufferSize.w / 2, 0, mBufferSize.w / 2, mBufferSize.h);
 
             // Bind the left or right ZED image
-            glBindTexture(GL_TEXTURE_2D, mZed->getTexture(eye));
+            glBindTexture(GL_TEXTURE_2D, mZed->getTexture(i));
             mQuad->render();
         }
 
@@ -217,36 +414,43 @@ public:
         ovrLayerEyeFov ld;
         ld.Header.Type = ovrLayerType_EyeFov;
         ld.Header.Flags = ovrLayerFlag_TextureOriginAtBottomLeft;
-        for (int eye = 0; eye < 2; ++eye)
+        for (int i = 0; i < 2; ++i)
         {
-            ld.ColorTexture[eye] = mTextureChain;
-            ld.Viewport[eye] = OVR::Recti(eye == ovrEye_Left ? 0 : mBufferSize.w / 2, 0, mBufferSize.w / 2, mBufferSize.h);
-            ld.Fov[eye] = mHmdDesc.DefaultEyeFov[eye];
-            ld.RenderPose[eye] = eyeRenderPose[eye];
+            ld.ColorTexture[i] = mTextureChain;
+            ld.Viewport[i] = OVR::Recti(i == ovrEye_Left ? 0 : mBufferSize.w / 2, 0, mBufferSize.w / 2, mBufferSize.h);
+            ld.Fov[i] = mHmdDesc.DefaultEyeFov[i];
+            ld.RenderPose[i] = eyeRenderPose[i];
         }
         ovrLayerHeader* layers = &ld.Header;
         ovrResult result = ovr_SubmitFrame(mSession, mFrameIndex, nullptr, &layers, 1);
         if (OVR_FAILURE(result))
             THROW_ERROR("Failed to submit frame!");
 
-        // Draw the mirror texture
-        glViewport(0, 0, getSize().width, getSize().height);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glBindTexture(GL_TEXTURE_2D, mMirrorTextureId);
-        mMirrorShader->bind();
-        mQuad->render();
-
         // A frame has been completed
         mFrameIndex++;
     }
 
 private:
+    bool mShowColour;
+
     Rectangle2D* mQuad;
-    Shader* mQuadShader;
-    Shader* mMirrorShader;
+    Shader* mFullscreenShader;
+    Shader* mFullscreenWithDepthShader;
+    Shader* mRiftMirrorShader;
+
+    STLModel* mModel;
+    Shader* mModelShader;
 
     ZEDCamera* mZed;
     F200Camera* mRealsense;
+
+    GLuint mDepthTexture[2];
+
+    // Warp parameters
+    glm::mat3 mRealsenseCalibInverse;
+    std::vector<double> mRealsenseDistortCoeffs;
+    glm::mat3 mZedCalib;
+    glm::mat4 mRealsenseToZedLeft;
 
     // OVR stuff
     ovrSession mSession;

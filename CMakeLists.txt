@@ -88,6 +88,3 @@ target_link_libraries(RiftAR ${OVR_LIBRARY})
 
 # StereoCalibrate
 add_app(StereoCalibrate src/StereoCalibrate.cpp)
-
-# ViewCalibration
-add_app(ViewCalibration src/ViewCalibration.cpp)

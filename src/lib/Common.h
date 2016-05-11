@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <cstdint>
 
 using std::string;
 using std::cout;
@@ -37,3 +38,25 @@ typedef unsigned int uint;
 
 // App
 #include "App.h"
+
+// Utils
+template <class T>
+glm::mat3 convertCVToMat3(cv::Mat& m)
+{
+    // GLM is column major but OpenCV is row major
+    glm::mat3 out;
+    for (int i = 0; i < 3; i++)
+    {
+        for (int j = 0; j < 3; j++)
+        {
+            out[j][i] = (float)m.at<T>(i, j);
+        }
+    }
+    return out;
+}
+
+template <class T>
+glm::vec3 convertCVToVec3(cv::Mat& v)
+{
+    return glm::vec3((float)v.at<T>(0), (float)v.at<T>(1), (float)v.at<T>(2));
+}

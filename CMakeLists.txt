@@ -82,7 +82,10 @@ function(add_app NAME SRC)
 endfunction()
 
 # RiftAR
-add_app(RiftAR src/RiftAR.cpp)
+set(RIFTAR_SRC
+    src/RiftAR.h
+    src/RiftAR.cpp)
+add_app(RiftAR "${RIFTAR_SRC}")
 target_include_directories(RiftAR PRIVATE ${OVR_INCLUDE_DIR})
 target_link_libraries(RiftAR ${OVR_LIBRARY})
 

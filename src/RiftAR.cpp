@@ -215,11 +215,6 @@ void RiftAR::updateDepthTextures()
 
         // Create the output depth frame and initialise to maximum depth
         warpedFrame = cv::Mat::zeros(cv::Size(mColourSize.width, mColourSize.height), CV_16UC1);
-        for (int c = 0; c < warpedFrame.cols; c++)
-        {
-            for (int r = 0; r < warpedFrame.rows; r++)
-                warpedFrame.at<uint16_t>(r, c) = 0xffff;
-        }
 
         // Transform each pixel from the original frame using the camera matrices above
         glm::vec2 point;
@@ -300,7 +295,7 @@ void RiftAR::writeDepth(cv::Mat& out, int x, int y, float depth)
     uint16_t newDepth = (uint16_t)(depth / mRealsense->getDepthScale());
 
     // Basic z-buffering here...
-    if (newDepth < oldDepth)
+    if (newDepth < oldDepth || oldDepth == 0)
         out.at<uint16_t>(y, x) = newDepth;
 }
 

@@ -52,7 +52,7 @@ set(SRC_FILES
     # GL helper objects ---------------
     src/lib/Rectangle2D.cpp
     src/lib/Shader.cpp
-	src/lib/STLModel.cpp
+	src/lib/Model.cpp
     # Cameras -------------------------
     src/lib/CameraSource.cpp
     src/lib/F200Camera.cpp
@@ -64,7 +64,7 @@ set(HDR_FILES
     # GL helper objects ---------------
     src/lib/Rectangle2D.h
     src/lib/Shader.h
-	src/lib/STLModel.h
+	src/lib/Model.h
     # Cameras -------------------------
     src/lib/CameraSource.h
     src/lib/F200Camera.h

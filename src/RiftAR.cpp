@@ -3,7 +3,7 @@
 #include "lib/ZEDCamera.h"
 
 #include "lib/Rectangle2D.h"
-#include "lib/STLModel.h"
+#include "lib/Model.h"
 #include "lib/Shader.h"
 
 #include <OVR_CAPI.h>
@@ -11,12 +11,13 @@
 #include <Extras/OVR_Math.h>
 
 //#define RIFT_DISPLAY
+//#define ENABLE_ZED
 
 class RiftAR : public App
 {
 public:
     RiftAR() :
-        mShowColour(false),
+        mShowColour(true),
         mFrameIndex(0)
     {
     }
@@ -24,8 +25,19 @@ public:
     void init() override
     {
         // Set up the cameras
-        mZed = new ZEDCamera(sl::zed::HD720, 0);
-        mRealsense = new F200Camera(640, 480, 60, F200Camera::ENABLE_DEPTH);
+#ifdef ENABLE_ZED
+        mZed = new ZEDCamera(sl::zed::HD720, 60);
+#endif
+        mRealsense = new F200Camera(640, 480, 60, F200Camera::ENABLE_COLOUR | F200Camera::ENABLE_DEPTH);
+
+        // Get the width/height of the output colour stream that the user sees
+#ifdef ENABLE_ZED
+        mColourSize.width = mZed->getWidth(ZEDCamera::LEFT);
+        mColourSize.height = mZed->getHeight(ZEDCamera::LEFT);
+#else
+        mColourSize.width = mRealsense->getWidth(F200Camera::COLOUR);
+        mColourSize.height = mRealsense->getHeight(F200Camera::COLOUR);
+#endif
 
         // Create OpenGL images to view the depth stream
         glGenTextures(2, mDepthTexture);
@@ -33,7 +45,7 @@ public:
         {
             glBindTexture(GL_TEXTURE_2D, mDepthTexture[i]);
             TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
-                mZed->getWidth(ZEDCamera::LEFT), mZed->getHeight(ZEDCamera::LEFT),
+                mColourSize.width, mColourSize.height,
                 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, nullptr));
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -43,10 +55,15 @@ public:
         CameraIntrinsics& depthIntr = mRealsense->getIntrinsics(F200Camera::DEPTH);
         mRealsenseCalibInverse = glm::inverse(convertCVToMat3<double>(depthIntr.cameraMatrix));
         mRealsenseDistortCoeffs = depthIntr.coeffs;
+#ifdef ENABLE_ZED
         mZedCalib = convertCVToMat3<double>(mZed->getIntrinsics(ZEDCamera::LEFT).cameraMatrix);
+#else
+        mZedCalib = convertCVToMat3<double>(mRealsense->getIntrinsics(F200Camera::COLOUR).cameraMatrix);
+#endif
 
         // Read extrinsics parameters that map the ZED to the realsense colour camera, and invert
         // to map in the opposite direction
+#ifdef ENABLE_ZED
         cv::FileStorage fs("../stereo-params.xml", cv::FileStorage::READ);
         cv::Mat rotationMatrix, translation;
         fs["R"] >> rotationMatrix;
@@ -54,6 +71,9 @@ public:
         glm::mat4 realsenseColourToZedLeft = buildExtrinsic(
             glm::inverse(convertCVToMat3<double>(rotationMatrix)),
             -convertCVToVec3<double>(translation));
+#else
+        glm::mat4 realsenseColourToZedLeft;
+#endif
 
         // Extrinsics to map from depth to colour in the F200
         glm::mat4 depthToColour = mRealsense->getExtrinsics(F200Camera::DEPTH, F200Camera::COLOUR);
@@ -68,8 +88,13 @@ public:
         // Calculate correct dimensions
         float ovrFovH = atanf(mHmdDesc.DefaultEyeFov[0].LeftTan) + atanf(mHmdDesc.DefaultEyeFov[0].RightTan);
         float ovrFovV = atanf(mHmdDesc.DefaultEyeFov[0].UpTan) + atanf(mHmdDesc.DefaultEyeFov[0].DownTan);
+#ifdef ENABLE_ZED
         float width = mZed->getIntrinsics(ZEDCamera::LEFT).fovH / ovrFovH;
         float height = mZed->getIntrinsics(ZEDCamera::LEFT).fovV / ovrFovV;
+#else
+        float width = mRealsense->getIntrinsics(F200Camera::COLOUR).fovH / ovrFovH;
+        float height = mRealsense->getIntrinsics(F200Camera::COLOUR).fovV / ovrFovV;
+#endif
 
         // Create rendering primitives
         mQuad = new Rectangle2D(
@@ -85,7 +110,6 @@ public:
         // Create objects
         float znear = 0.01f;
         float zfar = 10.0f;
-        mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
         mFullscreenWithDepthShader = new Shader("../media/quad.vs", "../media/quad_inv_depth.fs");
         mFullscreenWithDepthShader->bind();
         mFullscreenWithDepthShader->setUniform("rgbCameraImage", 0);
@@ -94,14 +118,9 @@ public:
         mFullscreenWithDepthShader->setUniform("zfar", zfar);
         mFullscreenWithDepthShader->setUniform("depthScale", USHRT_MAX * mRealsense->getDepthScale());
 
-        glm::mat4 model = glm::scale(glm::translate(glm::mat4(), glm::vec3(-0.4f, -0.4f, -1.2f)), glm::vec3(3.0f));
-        glm::mat4 view;
-        glm::mat4 projection = glm::perspective(glm::radians(75.0f), 640.0f / 480.0f, znear, zfar);
-        mModel = new STLModel("../media/meshes/skull.stl");
-        mModelShader = new Shader("../media/model.vs", "../media/model.fs");
-        mModelShader->bind();
-        mModelShader->setUniform("modelViewProjectionMatrix", projection * model);
-        mModelShader->setUniform("modelMatrix", model);
+        mProjection = glm::perspective(glm::radians(75.0f), (float)mColourSize.width / (float)mColourSize.height, znear, zfar);
+        mModel = new Model("../media/meshes/skull.stl");
+        mModel->setPosition(glm::vec3(-0.4f, -0.4f, -1.2f));
 
         // Enable culling and depth testing
         glEnable(GL_CULL_FACE);
@@ -110,10 +129,14 @@ public:
 
     ~RiftAR()
     {
+        delete mModel;
+        delete mFullscreenWithDepthShader;
         delete mQuad;
         delete mFullscreenShader;
 
+#ifdef ENABLE_ZED
         delete mZed;
+#endif
         delete mRealsense;
 
 #ifdef RIFT_DISPLAY
@@ -127,9 +150,12 @@ public:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Update the textures
+#ifdef ENABLE_ZED
         mZed->capture();
         mZed->updateTextures();
+#endif
         mRealsense->capture();
+        mRealsense->updateTextures();
 
         // Build depth texture
         updateDepthTextures();
@@ -152,9 +178,17 @@ public:
             if (mShowColour)
             {
                 glActiveTexture(GL_TEXTURE0);
+#ifdef ENABLE_ZED
                 glBindTexture(GL_TEXTURE_2D, mZed->getTexture(i));
+#else
+                glBindTexture(GL_TEXTURE_2D, mRealsense->getTexture(F200Camera::COLOUR));
+#endif
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, mDepthTexture[i]);
                 mFullscreenShader->bind();
                 mQuad->render();
+
+                mModel->render(mView, mProjection);
             }
             else
             {
@@ -169,6 +203,11 @@ public:
 
     void keyEvent(int key, int scancode, int action, int mods) override
     {
+        if (action == GLFW_PRESS)
+        {
+            if (key == GLFW_KEY_SPACE)
+                mShowColour = !mShowColour;
+        }
     }
 
     cv::Size getSize() override
@@ -179,13 +218,13 @@ public:
     // Distortion
     void updateDepthTextures()
     {
-        cv::Mat frame, warpedFrame;
+        static cv::Mat frame, warpedFrame;
         for (int i = 0; i < 2; i++)
         {
             mRealsense->copyFrameIntoCVImage(F200Camera::DEPTH, &frame);
 
             // Create the output depth frame and initialise to maximum depth
-            warpedFrame = cv::Mat::zeros(cv::Size(mZed->getWidth(ZEDCamera::LEFT), mZed->getHeight(ZEDCamera::RIGHT)), CV_16UC1);
+            warpedFrame = cv::Mat::zeros(cv::Size(mColourSize.width, mColourSize.height), CV_16UC1);
             for (int c = 0; c < warpedFrame.cols; c++)
             {
                 for (int r = 0; r < warpedFrame.rows; r++)
@@ -194,7 +233,11 @@ public:
 
             // Transform each pixel from the original frame using the camera matrices above
             glm::vec2 point;
+#ifdef ENABLE_ZED
             glm::mat4 realsenseToCurrentZed = mZed->getExtrinsics(ZEDCamera::LEFT, i) * mRealsenseToZedLeft;
+#else
+            glm::mat4 realsenseToCurrentZed = mRealsenseToZedLeft;
+#endif
             for (int row = 0; row < frame.rows; row++)
             {
                 for (int col = 0; col < frame.cols; col++)
@@ -237,9 +280,7 @@ public:
 
             // Copy depth data
             glBindTexture(GL_TEXTURE_2D, mDepthTexture[i]);
-            TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-                mZed->getWidth(ZEDCamera::LEFT), mZed->getHeight(ZEDCamera::LEFT),
-                GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, warpedFrame.ptr()));
+            TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mColourSize.width, mColourSize.height, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, warpedFrame.ptr()));
         }
     }
 
@@ -274,9 +315,7 @@ public:
 
         // Basic z-buffering here...
         if (newDepth < oldDepth)
-        {
             out.at<uint16_t>(y, x) = newDepth;
-        }
     }
 
     void undistortRealsense(glm::vec3& point, const std::vector<double>& coeffs)
@@ -438,8 +477,8 @@ private:
     Shader* mFullscreenWithDepthShader;
     Shader* mRiftMirrorShader;
 
-    STLModel* mModel;
-    Shader* mModelShader;
+    Model* mModel;
+    glm::mat4 mView, mProjection;
 
     ZEDCamera* mZed;
     F200Camera* mRealsense;
@@ -451,6 +490,7 @@ private:
     std::vector<double> mRealsenseDistortCoeffs;
     glm::mat3 mZedCalib;
     glm::mat4 mRealsenseToZedLeft;
+    cv::Size mColourSize;
 
     // OVR stuff
     ovrSession mSession;

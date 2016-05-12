@@ -230,24 +230,25 @@ void RiftAR::updateDepthTextures()
 #endif
         for (int row = 0; row < frame.rows; row++)
         {
+            uint16_t* rowData = frame.ptr<uint16_t>(row);
             for (int col = 0; col < frame.cols; col++)
             {
                 // Read depth
-                uint16_t depthPixel = frame.at<uint16_t>(row, col);
+                uint16_t depthPixel = rowData[col];
                 if (depthPixel == 0)
                     continue;
-                float depth = (float)depthPixel * mRealsense->getDepthScale();
+                float depth = depthPixel * mRealsense->getDepthScale();
                 float newDepth;
 
                 // Top left of depth pixel
                 point = glm::vec2((float)col - 0.5f, (float)row - 0.5f);
                 newDepth = reprojectRealsenseToZed(point, depth, realsenseToCurrentZed);
-                cv::Point start((int)std::round(point.x), (int)std::round(point.y));
+                cv::Point start((int)(point.x + 0.5f), (int)(point.y + 0.5f));
 
                 // Bottom right of depth pixel
                 point = glm::vec2((float)col + 0.5f, (float)row + 0.5f);
                 newDepth = reprojectRealsenseToZed(point, depth, realsenseToCurrentZed);
-                cv::Point end((int)std::round(point.x), (int)std::round(point.y));
+                cv::Point end((int)(point.x + 0.5f), (int)(point.y + 0.5f));
 
                 // Swap start/end if appropriate
                 if (start.x > end.x)
@@ -276,26 +277,21 @@ void RiftAR::updateDepthTextures()
 
 float RiftAR::reprojectRealsenseToZed(glm::vec2& point, float depth, const glm::mat4& extrinsics)
 {
-    glm::vec3 point2d;
-    glm::vec4 point3d;
+    glm::vec3 homogenousPoint = glm::vec3(point, 1.0f);
 
-    point2d = glm::vec3(point, 1.0f);
-
-    // De-project pixel to point and convert to 4D homogeneous coordinates
-    point2d = mRealsenseCalibInverse * point2d;
-    //undistortRealsense(point2d, mRealsenseDistortCoeffs);
-    point3d = glm::vec4(depth * point2d, 1.0f);
+    // De-project pixel to point in 3D space
+    homogenousPoint.x = mRealsenseCalibInverse[0][0] * homogenousPoint.x + mRealsenseCalibInverse[2][0];
+    homogenousPoint.y = mRealsenseCalibInverse[1][1] * homogenousPoint.y + mRealsenseCalibInverse[2][1];
+    undistortRealsense(homogenousPoint, mRealsenseDistortCoeffs);
+    homogenousPoint *= depth;
 
     // Map from Depth -> ZED
-    point3d = extrinsics * point3d;
+    homogenousPoint = glm::mat3(extrinsics) * homogenousPoint + glm::vec3(extrinsics[3]);
 
-    // Project point - conversion from vec3 to vec3 is equiv to multiplying by [I|0] matrix
-    point2d = mZedCalib * glm::vec3(point3d.x, point3d.y, point3d.z);
-
-    // Record depth and convert to cartesian
-    point.x = point2d.x / point2d.z;
-    point.y = point2d.y / point2d.z;
-    return point2d.z;
+    // Project point to new pixel - conversion from vec4 to vec3 is equiv to multiplying by [I|0] matrix
+    point.x = mZedCalib[0][0] * (homogenousPoint.x / homogenousPoint.z) + mZedCalib[2][0];
+    point.y = mZedCalib[1][1] * (homogenousPoint.y / homogenousPoint.z) + mZedCalib[2][1];
+    return homogenousPoint.z;
 }
 
 void RiftAR::writeDepth(cv::Mat& out, int x, int y, float depth)

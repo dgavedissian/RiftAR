@@ -28,11 +28,27 @@ int runApp(int argc, char** argv, App* app)
         app->init();
 
         // Main loop
+        double lastTime = 0;
+        int numberOfFrames = 0;
         glfwSetKeyCallback(window, App::glfwKeyEvent);
         while (!glfwWindowShouldClose(window))
         {
             // Render
             app->render();
+
+            // Update FPS counter
+            double currentTime = glfwGetTime();
+            double delta = currentTime - lastTime;
+            numberOfFrames++;
+            if (delta >= 1.0)
+            {
+                double fps = (double)numberOfFrames / delta;
+                std::stringstream ss;
+                ss << "RiftAR [" << fps << " FPS]";
+                glfwSetWindowTitle(window, ss.str().c_str());
+                lastTime = currentTime;
+                numberOfFrames = 0;
+            }
 
             // Swap buffers
             glfwSwapBuffers(window);
@@ -47,6 +63,8 @@ int runApp(int argc, char** argv, App* app)
     catch (std::runtime_error& e)
     {
         MessageBoxA(0, e.what(), "Error", MB_ICONERROR);
+        delete app;
+        glfwTerminate();
         return EXIT_FAILURE;
     }
 }

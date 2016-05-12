@@ -217,10 +217,12 @@ void RiftAR::updateDepthTextures()
 
     // Transform each pixel from the original frame using intrinsics and extrinsics
     glm::vec2 point;
+    glm::mat4 realsenseToZedEye[2];
+    realsenseToZedEye[0] = mRealsenseToZedLeft;
 #ifdef ENABLE_ZED
-    glm::mat4 realsenseToCurrentZed = mZed->getExtrinsics(ZEDCamera::LEFT, i) * mRealsenseToZedLeft;
+    realsenseToZedEye[1] = mZed->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT) * mRealsenseToZedLeft;
 #else
-    glm::mat4 realsenseToCurrentZed = mRealsenseToZedLeft;
+    realsenseToZedEye[1] = mRealsenseToZedLeft;
 #endif
     for (int row = 0; row < frame.rows; row++)
     {
@@ -239,12 +241,12 @@ void RiftAR::updateDepthTextures()
             {
                 // Top left of depth pixel
                 point = glm::vec2((float)col - 0.5f, (float)row - 0.5f);
-                newDepth = reprojectRealsenseToZed(point, depth, realsenseToCurrentZed);
+                newDepth = reprojectRealsenseToZed(point, depth, realsenseToZedEye[i]);
                 cv::Point start((int)(point.x + 0.5f), (int)(point.y + 0.5f));
 
                 // Bottom right of depth pixel
                 point = glm::vec2((float)col + 0.5f, (float)row + 0.5f);
-                newDepth = reprojectRealsenseToZed(point, depth, realsenseToCurrentZed);
+                newDepth = reprojectRealsenseToZed(point, depth, realsenseToZedEye[i]);
                 cv::Point end((int)(point.x + 0.5f), (int)(point.y + 0.5f));
 
                 // Swap start/end if appropriate
@@ -427,7 +429,11 @@ void RiftAR::renderToRift()
         glViewport(i == ovrEye_Left ? 0 : mBufferSize.w / 2, 0, mBufferSize.w / 2, mBufferSize.h);
 
         // Bind the left or right ZED image
+#ifdef ENABLE_ZED
         glBindTexture(GL_TEXTURE_2D, mZed->getTexture(i));
+#else
+        glBindTexture(GL_TEXTURE_2D, mRealsense->getTexture(F200Camera::COLOUR));
+#endif
         mQuad->render();
     }
 

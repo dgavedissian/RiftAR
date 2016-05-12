@@ -208,33 +208,35 @@ cv::Size RiftAR::getSize()
 // Distortion
 void RiftAR::updateDepthTextures()
 {
-    static cv::Mat frame, warpedFrame;
-    for (int i = 0; i < 2; i++)
-    {
-        mRealsense->copyFrameIntoCVImage(F200Camera::DEPTH, &frame);
+    static cv::Mat frame, warpedFrame[2];
 
-        // Create the output depth frame and initialise to maximum depth
-        warpedFrame = cv::Mat::zeros(cv::Size(mColourSize.width, mColourSize.height), CV_16UC1);
+    // Copy depth frame from realsense and initialise warped frames for each eye
+    mRealsense->copyFrameIntoCVImage(F200Camera::DEPTH, &frame);
+    warpedFrame[0] = cv::Mat::zeros(cv::Size(mColourSize.width, mColourSize.height), CV_16UC1);
+    warpedFrame[1] = cv::Mat::zeros(cv::Size(mColourSize.width, mColourSize.height), CV_16UC1);
 
-        // Transform each pixel from the original frame using the camera matrices above
-        glm::vec2 point;
+    // Transform each pixel from the original frame using intrinsics and extrinsics
+    glm::vec2 point;
 #ifdef ENABLE_ZED
-        glm::mat4 realsenseToCurrentZed = mZed->getExtrinsics(ZEDCamera::LEFT, i) * mRealsenseToZedLeft;
+    glm::mat4 realsenseToCurrentZed = mZed->getExtrinsics(ZEDCamera::LEFT, i) * mRealsenseToZedLeft;
 #else
-        glm::mat4 realsenseToCurrentZed = mRealsenseToZedLeft;
+    glm::mat4 realsenseToCurrentZed = mRealsenseToZedLeft;
 #endif
-        for (int row = 0; row < frame.rows; row++)
+    for (int row = 0; row < frame.rows; row++)
+    {
+        uint16_t* rowData = frame.ptr<uint16_t>(row);
+        for (int col = 0; col < frame.cols; col++)
         {
-            uint16_t* rowData = frame.ptr<uint16_t>(row);
-            for (int col = 0; col < frame.cols; col++)
-            {
-                // Read depth
-                uint16_t depthPixel = rowData[col];
-                if (depthPixel == 0)
-                    continue;
-                float depth = depthPixel * mRealsense->getDepthScale();
-                float newDepth;
+            // Read depth
+            uint16_t depthPixel = rowData[col];
+            if (depthPixel == 0)
+                continue;
+            float depth = depthPixel * mRealsense->getDepthScale();
+            float newDepth;
 
+            // Warp to each eye
+            for (int i = 0; i < 2; i++)
+            {
                 // Top left of depth pixel
                 point = glm::vec2((float)col - 0.5f, (float)row - 0.5f);
                 newDepth = reprojectRealsenseToZed(point, depth, realsenseToCurrentZed);
@@ -252,21 +254,24 @@ void RiftAR::updateDepthTextures()
                     std::swap(start.y, end.y);
 
                 // Reject pixels outside the target texture
-                if (start.x < 0 || start.y < 0 || end.x >= warpedFrame.cols || end.y >= warpedFrame.rows)
+                if (start.x < 0 || start.y < 0 || end.x >= warpedFrame[i].cols || end.y >= warpedFrame[i].rows)
                     continue;
 
                 // Write the rectangle defined by the corners of the depth pixel to the output image
                 for (int x = start.x; x <= end.x; x++)
                 {
                     for (int y = start.y; y <= end.y; y++)
-                        writeDepth(warpedFrame, x, y, newDepth);
+                        writeDepth(warpedFrame[i], x, y, newDepth);
                 }
             }
         }
+    }
 
-        // Copy depth data
+    // Copy depth data
+    for (int i = 0; i < 2; i++)
+    {
         glBindTexture(GL_TEXTURE_2D, mDepthTexture[i]);
-        TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mColourSize.width, mColourSize.height, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, warpedFrame.ptr()));
+        TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mColourSize.width, mColourSize.height, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, warpedFrame[i].ptr()));
     }
 }
 

@@ -45,6 +45,16 @@ add_subdirectory(3rdparty/librealsense)
 set(INCLUDE_DIRS ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/3rdparty/librealsense/include)
 set(LIBS ${LIBS} librealsense)
 
+# kfusion
+set(KFUSION_SRC
+    src/kfusion/helpers.cu
+    src/kfusion/helpers.h
+    src/kfusion/kfusion.cu
+    src/kfusion/kfusion.h
+    src/kfusion/cutil_math.h)
+include_directories(${CMAKE_SOURCE_DIR}/3rdparty)
+cuda_add_library(kfusion STATIC ${KFUSION_SRC})
+
 # Common library
 set(SRC_FILES
     3rdparty/gl3w.c
@@ -88,9 +98,8 @@ set(RIFTAR_SRC
     src/RiftAR.cpp
     src/RiftOutput.cpp)
 add_executable(RiftAR ${RIFTAR_SRC} ${RIFTAR_HDR})
-target_link_libraries(RiftAR Common)
 target_include_directories(RiftAR PRIVATE ${OVR_INCLUDE_DIR})
-target_link_libraries(RiftAR ${OVR_LIBRARY})
+target_link_libraries(RiftAR Common ${OVR_LIBRARY} kfusion)
 
 # StereoCalibrate
 add_executable(StereoCalibrate src/StereoCalibrate.cpp)

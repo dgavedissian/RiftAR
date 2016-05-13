@@ -75,19 +75,21 @@ add_library(Common STATIC ${SRC_FILES} ${HDR_FILES})
 target_include_directories(Common PUBLIC ${INCLUDE_DIRS})
 target_link_libraries(Common ${LIBS})
 
-# Add a new application
-function(add_app NAME SRC)
-    add_executable(${NAME} ${SRC})
-    target_link_libraries(${NAME} Common)
-endfunction()
-
 # RiftAR
-set(RIFTAR_SRC
+set(RIFTAR_HDR
+    src/DebugOutput.h
+    src/OutputContext.h
     src/RiftAR.h
-    src/RiftAR.cpp)
-add_app(RiftAR "${RIFTAR_SRC}")
+    src/RiftOutput.h)
+set(RIFTAR_SRC
+    src/DebugOutput.cpp
+    src/RiftAR.cpp
+    src/RiftOutput.cpp)
+add_executable(RiftAR ${RIFTAR_SRC} ${RIFTAR_HDR})
+target_link_libraries(RiftAR Common)
 target_include_directories(RiftAR PRIVATE ${OVR_INCLUDE_DIR})
 target_link_libraries(RiftAR ${OVR_LIBRARY})
 
 # StereoCalibrate
-add_app(StereoCalibrate src/StereoCalibrate.cpp)
+add_executable(StereoCalibrate src/StereoCalibrate.cpp)
+target_link_libraries(StereoCalibrate Common)

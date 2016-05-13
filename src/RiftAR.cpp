@@ -1,14 +1,15 @@
 #include "lib/Common.h"
 #include "RiftAR.h"
 
+#include "RiftOutput.h"
+#include "DebugOutput.h"
+
 //#define RIFT_DISPLAY
 //#define ENABLE_ZED
 
 DEFINE_MAIN(RiftAR);
 
-RiftAR::RiftAR() :
-    mShowColour(true),
-    mFrameIndex(0)
+RiftAR::RiftAR()
 {
 }
 
@@ -20,6 +21,94 @@ void RiftAR::init()
 #endif
     mRealsense = new F200Camera(640, 480, 60, F200Camera::ENABLE_COLOUR | F200Camera::ENABLE_DEPTH);
 
+    // Set up depth warping
+    setupDepthWarpStream();
+
+    // Set up scene
+    mRenderCtx.backbufferSize = getSize();
+    mRenderCtx.depthScale = USHRT_MAX * mRealsense->getDepthScale();
+    mRenderCtx.znear = 0.01f;
+    mRenderCtx.zfar = 10.0f;
+    mRenderCtx.projection = glm::perspective(glm::radians(75.0f), (float)mColourSize.width / (float)mColourSize.height, mRenderCtx.znear, mRenderCtx.zfar);
+    mRenderCtx.model = new Model("../media/meshes/skull.stl");
+    mRenderCtx.model->setPosition(glm::vec3(-0.4f, -0.4f, -1.2f));
+
+    // Set up output
+#ifdef ENABLE_ZED
+    float fovH = mZed->getIntrinsics(ZEDCamera::LEFT).fovH;
+    float fovV = mZed->getIntrinsics(ZEDCamera::LEFT).fovV;
+    mRenderCtx.colourTextures[0] = mZed->getTexture(ZEDCamera::LEFT);
+    mRenderCtx.colourTextures[1] = mZed->getTexture(ZEDCamera::RIGHT);
+#else
+    float fovH = mRealsense->getIntrinsics(F200Camera::COLOUR).fovH;
+    float fovV = mRealsense->getIntrinsics(F200Camera::COLOUR).fovV;
+    mRenderCtx.colourTextures[0] = mRealsense->getTexture(F200Camera::COLOUR);
+    mRenderCtx.colourTextures[1] = mRealsense->getTexture(F200Camera::COLOUR);
+#endif
+
+#ifdef RIFT_DISPLAY
+    mOutputCtx = new RiftOutput(getSize(), fovH, fovV);
+#else
+    mOutputCtx = new DebugOutput(mRenderCtx);
+#endif
+
+    // Enable culling and depth testing
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST);
+}
+
+RiftAR::~RiftAR()
+{
+    delete mRenderCtx.model;
+
+#ifdef ENABLE_ZED
+    delete mZed;
+#endif
+    delete mRealsense;
+
+    delete mOutputCtx;
+}
+
+void RiftAR::render()
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Update the textures
+#ifdef ENABLE_ZED
+    mZed->capture();
+    mZed->updateTextures();
+#endif
+    mRealsense->capture();
+    mRealsense->updateTextures();
+
+    // Build depth texture
+    updateDepthTextures();
+
+    // Render scene
+    mOutputCtx->renderScene(mRenderCtx);
+}
+
+void RiftAR::keyEvent(int key, int scancode, int action, int mods)
+{
+    if (action == GLFW_PRESS)
+    {
+        if (key == GLFW_KEY_SPACE)
+        {
+            DebugOutput* debug = dynamic_cast<DebugOutput*>(mOutputCtx);
+            if (debug)
+                debug->toggleDebug();
+        }
+    }
+}
+
+cv::Size RiftAR::getSize()
+{
+    return cv::Size(1600, 600);
+}
+
+// Distortion
+void RiftAR::setupDepthWarpStream()
+{
     // Get the width/height of the output colour stream that the user sees
 #ifdef ENABLE_ZED
     mColourSize.width = mZed->getWidth(ZEDCamera::LEFT);
@@ -30,10 +119,10 @@ void RiftAR::init()
 #endif
 
     // Create OpenGL images to view the depth stream
-    glGenTextures(2, mDepthTexture);
+    glGenTextures(2, mRenderCtx.depthTextures);
     for (int i = 0; i < 2; i++)
     {
-        glBindTexture(GL_TEXTURE_2D, mDepthTexture[i]);
+        glBindTexture(GL_TEXTURE_2D, mRenderCtx.depthTextures[i]);
         TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
             mColourSize.width, mColourSize.height,
             0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, nullptr));
@@ -70,142 +159,8 @@ void RiftAR::init()
 
     // Combined extrinsics mapping realsense depth to ZED left
     mRealsenseToZedLeft = realsenseColourToZedLeft * depthToColour;
-
-#ifdef RIFT_DISPLAY
-    // Set up Oculus
-    setupOVR();
-
-    // Calculate correct dimensions
-    float ovrFovH = atanf(mHmdDesc.DefaultEyeFov[0].LeftTan) + atanf(mHmdDesc.DefaultEyeFov[0].RightTan);
-    float ovrFovV = atanf(mHmdDesc.DefaultEyeFov[0].UpTan) + atanf(mHmdDesc.DefaultEyeFov[0].DownTan);
-#ifdef ENABLE_ZED
-    float width = mZed->getIntrinsics(ZEDCamera::LEFT).fovH / ovrFovH;
-    float height = mZed->getIntrinsics(ZEDCamera::LEFT).fovV / ovrFovV;
-#else
-    float width = mRealsense->getIntrinsics(F200Camera::COLOUR).fovH / ovrFovH;
-    float height = mRealsense->getIntrinsics(F200Camera::COLOUR).fovV / ovrFovV;
-#endif
-
-    // Create rendering primitives
-    mQuad = new Rectangle2D(
-        glm::vec2(0.5f - width * 0.5f, 0.5f - height * 0.5f),
-        glm::vec2(0.5f + width * 0.5f, 0.5f + height * 0.5f));
-    mFullscreenShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
-    mRiftMirrorShader = new Shader("../media/quad.vs", "../media/quad.fs");
-#else
-    // Create rendering primitives
-    mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
-    mFullscreenShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
-#endif
-    // Create objects
-    float znear = 0.01f;
-    float zfar = 10.0f;
-    mFullscreenWithDepthShader = new Shader("../media/quad.vs", "../media/quad_inv_depth.fs");
-    mFullscreenWithDepthShader->bind();
-    mFullscreenWithDepthShader->setUniform("rgbCameraImage", 0);
-    mFullscreenWithDepthShader->setUniform("depthCameraImage", 1);
-    mFullscreenWithDepthShader->setUniform("znear", znear);
-    mFullscreenWithDepthShader->setUniform("zfar", zfar);
-    mFullscreenWithDepthShader->setUniform("depthScale", USHRT_MAX * mRealsense->getDepthScale());
-
-    mProjection = glm::perspective(glm::radians(75.0f), (float)mColourSize.width / (float)mColourSize.height, znear, zfar);
-    mModel = new Model("../media/meshes/skull.stl");
-    mModel->setPosition(glm::vec3(-0.4f, -0.4f, -1.2f));
-
-    // Enable culling and depth testing
-    glEnable(GL_CULL_FACE);
-    glEnable(GL_DEPTH_TEST);
 }
 
-RiftAR::~RiftAR()
-{
-    delete mModel;
-    delete mFullscreenWithDepthShader;
-    delete mQuad;
-    delete mFullscreenShader;
-
-#ifdef ENABLE_ZED
-    delete mZed;
-#endif
-    delete mRealsense;
-
-#ifdef RIFT_DISPLAY
-    delete mRiftMirrorShader;
-    shutdownOVR();
-#endif
-}
-
-void RiftAR::render()
-{
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // Update the textures
-#ifdef ENABLE_ZED
-    mZed->capture();
-    mZed->updateTextures();
-#endif
-    mRealsense->capture();
-    mRealsense->updateTextures();
-
-    // Build depth texture
-    updateDepthTextures();
-
-#ifdef RIFT_DISPLAY
-    // Render to the rift headset
-    renderToRift();
-
-    // Draw the mirror texture
-    glViewport(0, 0, getSize().width, getSize().height);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTexture(GL_TEXTURE_2D, mMirrorTextureId);
-    mRiftMirrorShader->bind();
-    mQuad->render();
-#else
-    // Render each eye
-    for (int i = 0; i < 2; i++)
-    {
-        glViewport(i == 0 ? 0 : getSize().width / 2, 0, getSize().width / 2, getSize().height);
-        if (mShowColour)
-        {
-            glActiveTexture(GL_TEXTURE0);
-#ifdef ENABLE_ZED
-            glBindTexture(GL_TEXTURE_2D, mZed->getTexture(i));
-#else
-            glBindTexture(GL_TEXTURE_2D, mRealsense->getTexture(F200Camera::COLOUR));
-#endif
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, mDepthTexture[i]);
-            mFullscreenShader->bind();
-            mQuad->render();
-
-            mModel->render(mView, mProjection);
-        }
-        else
-        {
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, mDepthTexture[i]);
-            mFullscreenShader->bind();
-            mQuad->render();
-        }
-    }
-#endif
-}
-
-void RiftAR::keyEvent(int key, int scancode, int action, int mods)
-{
-    if (action == GLFW_PRESS)
-    {
-        if (key == GLFW_KEY_SPACE)
-            mShowColour = !mShowColour;
-    }
-}
-
-cv::Size RiftAR::getSize()
-{
-    return cv::Size(1600, 600);
-}
-
-// Distortion
 void RiftAR::updateDepthTextures()
 {
     static cv::Mat frame, warpedFrame[2];
@@ -272,7 +227,7 @@ void RiftAR::updateDepthTextures()
     // Copy depth data
     for (int i = 0; i < 2; i++)
     {
-        glBindTexture(GL_TEXTURE_2D, mDepthTexture[i]);
+        glBindTexture(GL_TEXTURE_2D, mRenderCtx.depthTextures[i]);
         TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mColourSize.width, mColourSize.height, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, warpedFrame[i].ptr()));
     }
 }
@@ -314,148 +269,4 @@ void RiftAR::undistortRealsense(glm::vec3& point, const std::vector<double>& coe
     float uy = point.y * f + 2.0f * coeffs[3] * point.x * point.y + coeffs[2] * (r2 + 2.0f * point.y * point.y);
     point.x = ux;
     point.y = uy;
-}
-
-void RiftAR::setupOVR()
-{
-    ovrResult result = ovr_Initialize(nullptr);
-    if (OVR_FAILURE(result))
-        THROW_ERROR("Failed to initialise LibOVR");
-
-    // Create a context for the rift device
-    result = ovr_Create(&mSession, &mLuid);
-    if (OVR_FAILURE(result))
-        THROW_ERROR("Oculus Rift not detected");
-
-    // Get the texture sizes of the rift eyes
-    mHmdDesc = ovr_GetHmdDesc(mSession);
-    ovrSizei textureSize0 = ovr_GetFovTextureSize(mSession, ovrEye_Left, mHmdDesc.DefaultEyeFov[0], 1.0f);
-    ovrSizei textureSize1 = ovr_GetFovTextureSize(mSession, ovrEye_Right, mHmdDesc.DefaultEyeFov[1], 1.0f);
-
-    // Compute the final size of the render buffer
-    mBufferSize.w = textureSize0.w + textureSize1.w;
-    mBufferSize.h = std::max(textureSize0.h, textureSize1.h);
-
-    // Initialize OpenGL swap textures to render
-    ovrTextureSwapChainDesc descTextureSwap = {};
-    descTextureSwap.Type = ovrTexture_2D;
-    descTextureSwap.ArraySize = 1;
-    descTextureSwap.Width = mBufferSize.w;
-    descTextureSwap.Height = mBufferSize.h;
-    descTextureSwap.MipLevels = 1;
-    descTextureSwap.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
-    descTextureSwap.SampleCount = 1;
-    descTextureSwap.StaticImage = ovrFalse;
-
-    // Create the OpenGL texture swap chain, and enable linear filtering on each texture in the swap chain
-    result = ovr_CreateTextureSwapChainGL(mSession, &descTextureSwap, &mTextureChain);
-    int length = 0;
-    ovr_GetTextureSwapChainLength(mSession, mTextureChain, &length);
-    if (OVR_SUCCESS(result))
-    {
-        for (int i = 0; i < length; ++i)
-        {
-            GLuint chainTexId;
-            ovr_GetTextureSwapChainBufferGL(mSession, mTextureChain, i, &chainTexId);
-            glBindTexture(GL_TEXTURE_2D, chainTexId);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        }
-    }
-
-    // Generate frame buffer to render
-    glGenFramebuffers(1, &mFramebufferId);
-
-    // Generate depth buffer of the frame buffer
-    glGenTextures(1, &mDepthBufferId);
-    glBindTexture(GL_TEXTURE_2D, mDepthBufferId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, mBufferSize.w, mBufferSize.h, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
-
-    // Create a mirror texture which is used to display the result in the GLFW window
-    ovrMirrorTextureDesc descMirrorTexture;
-    memset(&descMirrorTexture, 0, sizeof(descMirrorTexture));
-    descMirrorTexture.Width = getSize().width;
-    descMirrorTexture.Height = getSize().height;
-    descMirrorTexture.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
-    result = ovr_CreateMirrorTextureGL(mSession, &descMirrorTexture, &mMirrorTexture);
-    if (!OVR_SUCCESS(result))
-        THROW_ERROR("Failed to create the mirror texture");
-    ovr_GetMirrorTextureBufferGL(mSession, mMirrorTexture, &mMirrorTextureId);
-}
-
-void RiftAR::shutdownOVR()
-{
-    ovr_Destroy(mSession);
-    ovr_Shutdown();
-}
-
-void RiftAR::renderToRift()
-{
-    // Get texture swap index where we must draw our frame
-    GLuint curTexId;
-    int curIndex;
-    ovr_GetTextureSwapChainCurrentIndex(mSession, mTextureChain, &curIndex);
-    ovr_GetTextureSwapChainBufferGL(mSession, mTextureChain, curIndex, &curTexId);
-
-    // Call ovr_GetRenderDesc each frame to get the ovrEyeRenderDesc, as the returned values (e.g. HmdToEyeOffset) may change at runtime.
-    ovrEyeRenderDesc eyeRenderDesc[2];
-    eyeRenderDesc[0] = ovr_GetRenderDesc(mSession, ovrEye_Left, mHmdDesc.DefaultEyeFov[0]);
-    eyeRenderDesc[1] = ovr_GetRenderDesc(mSession, ovrEye_Right, mHmdDesc.DefaultEyeFov[1]);
-    ovrVector3f hmdToEyeOffset[2];
-    hmdToEyeOffset[0] = eyeRenderDesc[0].HmdToEyeOffset;
-    hmdToEyeOffset[1] = eyeRenderDesc[1].HmdToEyeOffset;
-
-    // Get eye poses, feeding in correct IPD offset
-    ovrPosef eyeRenderPose[2];
-    double sensorSampleTime;
-    ovr_GetEyePoses(mSession, mFrameIndex, ovrTrue, hmdToEyeOffset, eyeRenderPose, &sensorSampleTime);
-
-    // Bind the frame buffer
-    glBindFramebuffer(GL_FRAMEBUFFER, mFramebufferId);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, curTexId, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, mDepthBufferId, 0);
-
-    // Clear the frame buffer
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(0, 0, 0, 1);
-
-    // Render for each Oculus eye the equivalent ZED image
-    mFullscreenShader->bind();
-    for (int i = 0; i < 2; i++)
-    {
-        // Set the left or right vertical half of the buffer as the viewport
-        glViewport(i == ovrEye_Left ? 0 : mBufferSize.w / 2, 0, mBufferSize.w / 2, mBufferSize.h);
-
-        // Bind the left or right ZED image
-#ifdef ENABLE_ZED
-        glBindTexture(GL_TEXTURE_2D, mZed->getTexture(i));
-#else
-        glBindTexture(GL_TEXTURE_2D, mRealsense->getTexture(F200Camera::COLOUR));
-#endif
-        mQuad->render();
-    }
-
-    // Commit changes to the textures so they get picked up in the next frame
-    ovr_CommitTextureSwapChain(mSession, mTextureChain);
-
-    // Submit the frame
-    ovrLayerEyeFov ld;
-    ld.Header.Type = ovrLayerType_EyeFov;
-    ld.Header.Flags = ovrLayerFlag_TextureOriginAtBottomLeft;
-    for (int i = 0; i < 2; ++i)
-    {
-        ld.ColorTexture[i] = mTextureChain;
-        ld.Viewport[i] = OVR::Recti(i == ovrEye_Left ? 0 : mBufferSize.w / 2, 0, mBufferSize.w / 2, mBufferSize.h);
-        ld.Fov[i] = mHmdDesc.DefaultEyeFov[i];
-        ld.RenderPose[i] = eyeRenderPose[i];
-    }
-    ovrLayerHeader* layers = &ld.Header;
-    ovrResult result = ovr_SubmitFrame(mSession, mFrameIndex, nullptr, &layers, 1);
-    if (OVR_FAILURE(result))
-        THROW_ERROR("Failed to submit frame!");
-
-    // A frame has been completed
-    mFrameIndex++;
 }

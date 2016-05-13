@@ -8,9 +8,7 @@
 #include "lib/Shader.h"
 
 #include "OutputContext.h"
-
-//#define RIFT_DISPLAY
-//#define ENABLE_ZED
+#include "RealsenseDepthAdjuster.h"
 
 class RiftAR : public App
 {
@@ -23,23 +21,16 @@ public:
     void keyEvent(int key, int scancode, int action, int mods) override;
     cv::Size getSize() override;
 
-    // Distortion
-    void setupDepthWarpStream();
-    void updateDepthTextures();
-    float reprojectRealsenseToZed(glm::vec2& point, float depth, const glm::mat4& extrinsics);
-    void writeDepth(cv::Mat& out, int x, int y, float depth);
-    void undistortRealsense(glm::vec3& point, const std::vector<double>& coeffs);
-
 private:
+    void setupDepthWarpStream(cv::Size destinationSize);
+
     ZEDCamera* mZed;
     F200Camera* mRealsense;
 
     // Warp parameters
-    glm::mat3 mRealsenseCalibInverse;
-    std::vector<double> mRealsenseDistortCoeffs;
+    RealsenseDepthAdjuster* RealsenseDepth;
     glm::mat3 mZedCalib;
     glm::mat4 mRealsenseToZedLeft;
-    cv::Size mColourSize;
 
     // Rendering
     RenderContext mRenderCtx;

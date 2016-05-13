@@ -8,7 +8,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 # Dependencies
 find_package(OpenGL)
 find_package(CUDA 7.5 REQUIRED)
-find_package(OpenCV 2.4 COMPONENTS core highgui imgproc calib3d REQUIRED)
+find_package(OpenCV 2.4 COMPONENTS core highgui calib3d REQUIRED)
 
 set(ZED_INCLUDE_DIRS $ENV{ZED_INCLUDE_DIRS})
 set(ZED_LIBRARY_DIR $ENV{ZED_LIBRARY_DIR})
@@ -27,10 +27,6 @@ set(LIBS
 	${OpenCV_LIBRARIES}
     ${ZED_LIBRARIES})
 
-# OVR
-set(OVR_SDK_ROOT ${THIRD_PARTY_DIR}/OculusSDK)
-find_package(OVR)
-
 # GLFW
 set(GLFW_BUILD_EXAMPLES OFF)
 set(GLFW_BUILD_TESTS OFF)
@@ -44,16 +40,6 @@ set(LIBS ${LIBS} ${GLFW_LIBRARIES} glfw)
 add_subdirectory(3rdparty/librealsense)
 set(INCLUDE_DIRS ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/3rdparty/librealsense/include)
 set(LIBS ${LIBS} librealsense)
-
-# kfusion
-set(KFUSION_SRC
-    src/kfusion/helpers.cu
-    src/kfusion/helpers.h
-    src/kfusion/kfusion.cu
-    src/kfusion/kfusion.h
-    src/kfusion/cutil_math.h)
-include_directories(${CMAKE_SOURCE_DIR}/3rdparty)
-cuda_add_library(kfusion STATIC ${KFUSION_SRC})
 
 # Common library
 set(SRC_FILES
@@ -85,6 +71,13 @@ add_library(Common STATIC ${SRC_FILES} ${HDR_FILES})
 target_include_directories(Common PUBLIC ${INCLUDE_DIRS})
 target_link_libraries(Common ${LIBS})
 
+# OVR
+set(OVR_SDK_ROOT ${THIRD_PARTY_DIR}/OculusSDK)
+find_package(OVR)
+
+# kfusion
+add_subdirectory(3rdparty/kfusion)
+
 # RiftAR
 set(RIFTAR_HDR
     src/DebugOutput.h
@@ -98,7 +91,7 @@ set(RIFTAR_SRC
     src/RiftAR.cpp
     src/RiftOutput.cpp)
 add_executable(RiftAR ${RIFTAR_SRC} ${RIFTAR_HDR})
-target_include_directories(RiftAR PRIVATE ${OVR_INCLUDE_DIR})
+target_include_directories(RiftAR PRIVATE ${OVR_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/3rdparty/kfusion)
 target_link_libraries(RiftAR Common ${OVR_LIBRARY} kfusion)
 
 # StereoCalibrate

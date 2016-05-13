@@ -28,7 +28,7 @@ private:
     F200Camera* mRealsense;
 
     // Warp parameters
-    RealsenseDepthAdjuster* RealsenseDepth;
+    RealsenseDepthAdjuster* mRealsenseDepth;
     glm::mat3 mZedCalib;
     glm::mat4 mRealsenseToZedLeft;
 

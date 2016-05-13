@@ -93,11 +93,11 @@ void RiftAR::render()
 
     // Build depth texture
 #ifdef ENABLE_ZED
-    RealsenseDepth->warpToPair(mZedCalib,
+    mRealsenseDepth->warpToPair(mZedCalib,
         mRealsenseToZedLeft,
         mZed->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT) * mRealsenseToZedLeft);
 #else
-    RealsenseDepth->warpToPair(mZedCalib, mRealsenseToZedLeft, mRealsenseToZedLeft);
+    mRealsenseDepth->warpToPair(mZedCalib, mRealsenseToZedLeft, mRealsenseToZedLeft);
 #endif
 
     // Render scene
@@ -125,9 +125,9 @@ cv::Size RiftAR::getSize()
 // Distortion
 void RiftAR::setupDepthWarpStream(cv::Size destinationSize)
 {
-    RealsenseDepth = new RealsenseDepthAdjuster(mRealsense, destinationSize);
-    mRenderCtx.depthTextures[0] = RealsenseDepth->getDepthTexture(0);
-    mRenderCtx.depthTextures[1] = RealsenseDepth->getDepthTexture(1);
+    mRealsenseDepth = new RealsenseDepthAdjuster(mRealsense, destinationSize);
+    mRenderCtx.depthTextures[0] = mRealsenseDepth->getDepthTexture(0);
+    mRenderCtx.depthTextures[1] = mRealsenseDepth->getDepthTexture(1);
 
     // Read parameters
 #ifdef ENABLE_ZED

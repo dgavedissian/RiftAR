@@ -1,5 +1,7 @@
 #pragma once
 
+#include <kfusion/kfusion.h>
+
 #include "lib/F200Camera.h"
 #include "lib/ZEDCamera.h"
 
@@ -26,6 +28,9 @@ private:
 
     ZEDCamera* mZed;
     F200Camera* mRealsense;
+
+    // KFusion
+    KFusion* mKFusion;
 
     // Warp parameters
     RealsenseDepthAdjuster* mRealsenseDepth;

@@ -27,12 +27,11 @@ RealsenseDepthAdjuster::~RealsenseDepthAdjuster()
 {
 }
 
-void RealsenseDepthAdjuster::warpToPair(const glm::mat3& destCalib, const glm::mat4& leftExtrinsics, const glm::mat4& rightExtrinsics)
+void RealsenseDepthAdjuster::warpToPair(cv::Mat& frame, const glm::mat3& destCalib, const glm::mat4& leftExtrinsics, const glm::mat4& rightExtrinsics)
 {
-    static cv::Mat frame, warpedFrame[2];
+    static cv::Mat warpedFrame[2];
 
-    // Copy depth frame from realsense and initialise warped frames for each eye
-    mRealsense->copyFrameIntoCVImage(F200Camera::DEPTH, &frame);
+    // Initialise warped frames for each eye
     warpedFrame[0] = cv::Mat::zeros(cv::Size(mColourSize.width, mColourSize.height), CV_16UC1);
     warpedFrame[1] = cv::Mat::zeros(cv::Size(mColourSize.width, mColourSize.height), CV_16UC1);
 

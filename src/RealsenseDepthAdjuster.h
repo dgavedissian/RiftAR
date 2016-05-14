@@ -8,7 +8,7 @@ public:
     RealsenseDepthAdjuster(F200Camera* realsense, cv::Size destinationSize);
     ~RealsenseDepthAdjuster();
 
-    void warpToPair(const glm::mat3& destCalib, const glm::mat4& leftExtrinsics, const glm::mat4& rightExtrinsics);
+    void warpToPair(cv::Mat& frame, const glm::mat3& destCalib, const glm::mat4& leftExtrinsics, const glm::mat4& rightExtrinsics);
     GLuint getDepthTexture(uint eye);
 
 private:

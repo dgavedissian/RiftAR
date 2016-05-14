@@ -3,7 +3,7 @@
 #include "DebugOutput.h"
 
 DebugOutput::DebugOutput(RenderContext& ctx) :
-    mShowColour(true)
+    mShowColour(false)
 {
     // Create rendering primitives
     mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));

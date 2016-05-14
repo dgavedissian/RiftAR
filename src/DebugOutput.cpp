@@ -46,7 +46,7 @@ void DebugOutput::renderScene(RenderContext& ctx)
             mFullscreenShader->bind();
             mQuad->render();
 
-            ctx.model->render(ctx.view, ctx.projection);
+            ctx.renderScene(i);
         }
         else
         {

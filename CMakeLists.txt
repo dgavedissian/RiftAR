@@ -83,11 +83,13 @@ set(RIFTAR_HDR
     src/DebugOutput.h
     src/OutputContext.h
     src/RealsenseDepthAdjuster.h
+    src/RenderContext.h
     src/RiftAR.h
     src/RiftOutput.h)
 set(RIFTAR_SRC
     src/DebugOutput.cpp
     src/RealsenseDepthAdjuster.cpp
+    src/RenderContext.cpp
     src/RiftAR.cpp
     src/RiftOutput.cpp)
 add_executable(RiftAR ${RIFTAR_SRC} ${RIFTAR_HDR})

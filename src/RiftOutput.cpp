@@ -133,6 +133,9 @@ void RiftOutput::renderScene(RenderContext& ctx)
         // Bind the left or right ZED image
         glBindTexture(GL_TEXTURE_2D, ctx.colourTextures[i]);
         mQuad->render();
+
+        // Render the scene
+        ctx.renderScene(i);
     }
 
     // Commit changes to the textures so they get picked up in the next frame

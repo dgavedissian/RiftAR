@@ -1,7 +1,7 @@
 #include "lib/Common.h"
 #include "RiftOutput.h"
 
-RiftOutput::RiftOutput(cv::Size backbufferSize, float cameraFovH, float cameraFovV) :
+RiftOutput::RiftOutput(cv::Size backbufferSize, float cameraFovH, float cameraFovV, bool invertColour) :
     mFrameIndex(0)
 {
     ovrResult result = ovr_Initialize(nullptr);
@@ -81,7 +81,8 @@ RiftOutput::RiftOutput(cv::Size backbufferSize, float cameraFovH, float cameraFo
         glm::vec2(0.5f - width * 0.5f, 0.5f - height * 0.5f),
         glm::vec2(0.5f + width * 0.5f, 0.5f + height * 0.5f));
     mFullscreenQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
-    mFullscreenShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
+    mFullscreenShader = new Shader("../media/quad.vs", "../media/quad.fs");
+    mFullscreenShader->setUniform("invertColour", invertColour);
     mRiftMirrorShader = new Shader("../media/quad.vs", "../media/quad.fs");
 }
 

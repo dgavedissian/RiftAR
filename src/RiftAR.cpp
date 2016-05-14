@@ -115,10 +115,15 @@ void RiftAR::init()
     mRenderCtx.colourTextures[1] = mRealsense->getTexture(F200Camera::COLOUR);
 #endif
 
-#ifdef RIFT_DISPLAY
-    mOutputCtx = new RiftOutput(getSize(), fovH, fovV);
+#ifdef ENABLE_ZED
+    bool invertColours = true;
 #else
-    mOutputCtx = new DebugOutput(mRenderCtx);
+    bool invertColours = false;
+#endif
+#ifdef RIFT_DISPLAY
+    mOutputCtx = new RiftOutput(getSize(), fovH, fovV, invertColours);
+#else
+    mOutputCtx = new DebugOutput(mRenderCtx, invertColours);
 #endif
 
     // Enable culling and depth testing

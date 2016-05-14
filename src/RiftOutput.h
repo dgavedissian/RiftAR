@@ -12,7 +12,7 @@
 class RiftOutput : public OutputContext
 {
 public:
-    RiftOutput(cv::Size backbufferSize, float cameraFovH, float cameraFovV);
+    RiftOutput(cv::Size backbufferSize, float cameraFovH, float cameraFovV, bool invertColour);
     ~RiftOutput();
 
     void renderScene(RenderContext& ctx) override;

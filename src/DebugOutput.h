@@ -8,7 +8,7 @@
 class DebugOutput : public OutputContext
 {
 public:
-    DebugOutput(RenderContext& ctx);
+    DebugOutput(RenderContext& ctx, bool invertColour);
     ~DebugOutput();
 
     void renderScene(RenderContext& ctx) override;

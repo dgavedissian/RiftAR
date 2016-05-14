@@ -28,58 +28,47 @@ private:
 
 };
 
+template <> inline void Shader::setUniform(const string& name, const bool& value)
+{
+    glUniform1i(getUniformLocation(name), (int)value);
+}
+
 template <> inline void Shader::setUniform(const string& name, const int& value)
 {
-    GLint location = getUniformLocation(name);
-    if (location != -1)
-        glUniform1i(location, value);
+    glUniform1i(getUniformLocation(name), value);
 }
 
 template <> inline void Shader::setUniform(const string& name, const float& value)
 {
-    GLint location = getUniformLocation(name);
-    if (location != -1)
-        glUniform1f(location, value);
+    glUniform1f(getUniformLocation(name), value);
 }
 
 template <> inline void Shader::setUniform(const string& name, const glm::vec2& value)
 {
-    GLint location = getUniformLocation(name);
-    if (location != -1)
-        glUniform2f(location, value.x, value.y);
+    glUniform2f(getUniformLocation(name), value.x, value.y);
 }
 
 template <> inline void Shader::setUniform(const string& name, const glm::vec3& value)
 {
-    GLint location = getUniformLocation(name);
-    if (location != -1)
-        glUniform3f(location, value.x, value.y, value.z);
+    glUniform3f(getUniformLocation(name), value.x, value.y, value.z);
 }
 
 template <> inline void Shader::setUniform(const string& name, const glm::vec4& value)
 {
-    GLint location = getUniformLocation(name);
-    if (location != -1)
-        glUniform4f(location, value.x, value.y, value.z, value.w);
+    glUniform4f(getUniformLocation(name), value.x, value.y, value.z, value.w);
 }
 
 template <> inline void Shader::setUniform(const string& name, const glm::mat2& value)
 {
-    GLint location = getUniformLocation(name);
-    if (location != -1)
-        glUniformMatrix2fv(location, 1, GL_FALSE, glm::value_ptr(value));
+    glUniformMatrix2fv(getUniformLocation(name), 1, GL_FALSE, glm::value_ptr(value));
 }
 
 template <> inline void Shader::setUniform(const string& name, const glm::mat3& value)
 {
-    GLint location = getUniformLocation(name);
-    if (location != -1)
-        glUniformMatrix3fv(location, 1, GL_FALSE, glm::value_ptr(value));
+    glUniformMatrix3fv(getUniformLocation(name), 1, GL_FALSE, glm::value_ptr(value));
 }
 
 template <> inline void Shader::setUniform(const string& name, const glm::mat4& value)
 {
-    GLint location = getUniformLocation(name);
-    if (location != -1)
-        glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
+    glUniformMatrix4fv(getUniformLocation(name), 1, GL_FALSE, glm::value_ptr(value));
 }

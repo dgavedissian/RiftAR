@@ -2,16 +2,19 @@
 #include "lib/Model.h"
 #include "DebugOutput.h"
 
-DebugOutput::DebugOutput(RenderContext& ctx) :
+DebugOutput::DebugOutput(RenderContext& ctx, bool invertColour) :
     mShowColour(false)
 {
     // Create rendering primitives
     mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
-    mFullscreenShader = new Shader("../media/quad.vs", "../media/quad_inv.fs");
+    mFullscreenShader = new Shader("../media/quad.vs", "../media/quad.fs");
+    mFullscreenShader->bind();
+    mFullscreenShader->setUniform("invertColour", invertColour);
 
     // Create objects
-    mFullscreenWithDepthShader = new Shader("../media/quad.vs", "../media/quad_inv_depth.fs");
+    mFullscreenWithDepthShader = new Shader("../media/quad.vs", "../media/quad_depth.fs");
     mFullscreenWithDepthShader->bind();
+    mFullscreenWithDepthShader->setUniform("invertColour", invertColour);
     mFullscreenWithDepthShader->setUniform("rgbCameraImage", 0);
     mFullscreenWithDepthShader->setUniform("depthCameraImage", 1);
     mFullscreenWithDepthShader->setUniform("znear", ctx.znear);

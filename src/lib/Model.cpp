@@ -63,6 +63,21 @@ void Model::render(const glm::mat4& view, const glm::mat4& projection)
     glDrawArrays(GL_TRIANGLES, 0, mVertexCount);
 }
 
+glm::vec3 Model::getMin() const
+{
+    return mMin;
+}
+
+glm::vec3 Model::getMax() const
+{
+    return mMax;
+}
+
+glm::vec3 Model::getSize() const
+{
+     return mSize;
+}
+
 void Model::load(std::ifstream& in, std::vector<glm::vec3>& vertexData)
 {
     uint32_t triangleCount;
@@ -73,6 +88,8 @@ void Model::load(std::ifstream& in, std::vector<glm::vec3>& vertexData)
     cout << "- Triangles: " << triangleCount << endl;
 
     float inf = std::numeric_limits<float>::infinity();
+    mMin = glm::vec3(inf);
+    mMax = glm::vec3(-inf);
 
     for (int i = 0; i < triangleCount; i++)
     {
@@ -88,8 +105,22 @@ void Model::load(std::ifstream& in, std::vector<glm::vec3>& vertexData)
             in.read((char*)&point.y, sizeof(float));
             in.read((char*)&point.z, sizeof(float));
             
-            // Scale point to metres scale from mm
+            // Transform point from millimetres to metres
             point *= 1e-3f;
+
+            // Update bounding box
+            if (point.x < mMin.x)
+                mMin.x = point.x;
+            if (point.y < mMin.y)
+                mMin.y = point.y;
+            if (point.z < mMin.z)
+                mMin.z = point.z;
+            if (point.x > mMax.x)
+                mMax.x = point.x;
+            if (point.y > mMax.y)
+                mMax.y = point.y;
+            if (point.z > mMax.z)
+                mMax.z = point.z;
 
             vertexData.push_back(point);
             vertexData.push_back(normal);
@@ -97,5 +128,7 @@ void Model::load(std::ifstream& in, std::vector<glm::vec3>& vertexData)
 
         in.seekg(2, std::ios::cur);
     }
+
+    mSize = mMax - mMin;
 
 }

@@ -13,6 +13,10 @@ public:
 
     void render(const glm::mat4& view, const glm::mat4& projection);
 
+    glm::vec3 getMin() const;
+    glm::vec3 getMax() const;
+    glm::vec3 getSize() const;
+
 private:
     void load(std::ifstream& in, std::vector<glm::vec3>& vertexData);
 
@@ -22,5 +26,7 @@ private:
 
     Shader* mShader;
     glm::mat4 mModelMatrix;
+
+    glm::vec3 mMin, mMax, mSize;
 
 };

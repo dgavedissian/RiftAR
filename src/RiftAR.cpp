@@ -100,8 +100,7 @@ void RiftAR::init()
     mRenderCtx.zfar = 10.0f;
     mRenderCtx.projection = glm::perspective(glm::radians(75.0f), (float)destinationSize.width / (float)destinationSize.height, mRenderCtx.znear, mRenderCtx.zfar);
     mRenderCtx.model = new Model("../media/meshes/bob.stl");
-    mRenderCtx.model->setPosition(glm::vec3(-0.1f, -0.1f, -0.4f));
-    //mRenderCtx.model->setScale(glm::vec3(2.0f));
+    mRenderCtx.model->setPosition(glm::vec3(-mRenderCtx.model->getSize().x * 0.5f, -mRenderCtx.model->getSize().y * 0.5f, -0.5f));
 
     // Set up output
 #ifdef ENABLE_ZED

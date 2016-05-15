@@ -3,7 +3,7 @@
 #include "DebugOutput.h"
 
 DebugOutput::DebugOutput(RenderContext& ctx, bool invertColour) :
-    mShowColour(false)
+    mShowColour(true)
 {
     // Create rendering primitives
     mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
@@ -43,7 +43,7 @@ void DebugOutput::renderScene(RenderContext& ctx)
             glBindTexture(GL_TEXTURE_2D, ctx.colourTextures[i]);
             glActiveTexture(GL_TEXTURE1);
             glBindTexture(GL_TEXTURE_2D, ctx.depthTextures[i]);
-            mFullscreenShader->bind();
+            mFullscreenWithDepthShader->bind();
             mQuad->render();
 
             ctx.renderScene(i);

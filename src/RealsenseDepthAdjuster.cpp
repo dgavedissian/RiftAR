@@ -34,6 +34,14 @@ void RealsenseDepthAdjuster::warpToPair(cv::Mat& frame, const glm::mat3& destCal
     // Initialise warped frames for each eye
     warpedFrame[0] = cv::Mat::zeros(cv::Size(mColourSize.width, mColourSize.height), CV_16UC1);
     warpedFrame[1] = cv::Mat::zeros(cv::Size(mColourSize.width, mColourSize.height), CV_16UC1);
+    for (int c = 0; c < mColourSize.width; c++)
+    {
+        for (int r = 0; r < mColourSize.height; r++)
+        {
+            warpedFrame[0].at<uint16_t>(r, c) = 0xffff;
+            warpedFrame[1].at<uint16_t>(r, c) = 0xffff;
+        }
+    }
 
     // Transform each pixel from the original frame using intrinsics and extrinsics
     glm::vec2 point;

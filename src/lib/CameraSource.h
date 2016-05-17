@@ -12,6 +12,9 @@ struct CameraIntrinsics
     // Format camera matrix and coeffs in the format that OpenCV expects
     cv::Mat cameraMatrix;
     std::vector<double> coeffs;
+
+    // Build an OpenGL projection matrix that uses these intrinsic parameters
+    glm::mat4 buildGLProjection(float near, float far);
 };
 
 inline glm::mat4 buildExtrinsic(glm::mat3& rotation, glm::vec3& translation)

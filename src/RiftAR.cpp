@@ -98,7 +98,6 @@ void RiftAR::init()
     mRenderCtx.depthScale = USHRT_MAX * mRealsense->getDepthScale();
     mRenderCtx.znear = 0.01f;
     mRenderCtx.zfar = 10.0f;
-    mRenderCtx.projection = glm::perspective(glm::radians(75.0f), (float)destinationSize.width / (float)destinationSize.height, mRenderCtx.znear, mRenderCtx.zfar);
     mRenderCtx.model = new Model("../media/meshes/bob.stl");
     mRenderCtx.model->setPosition(glm::vec3(-mRenderCtx.model->getSize().x * 0.5f, -mRenderCtx.model->getSize().y * 0.5f, -0.5f));
 
@@ -108,11 +107,13 @@ void RiftAR::init()
     float fovV = mZed->getIntrinsics(ZEDCamera::LEFT).fovV;
     mRenderCtx.colourTextures[0] = mZed->getTexture(ZEDCamera::LEFT);
     mRenderCtx.colourTextures[1] = mZed->getTexture(ZEDCamera::RIGHT);
+    mRenderCtx.projection = mZed->getIntrinsics(ZEDCamera::LEFT).buildGLProjection(mRenderCtx.znear, mRenderCtx.zfar);
 #else
     float fovH = mRealsense->getIntrinsics(F200Camera::COLOUR).fovH;
     float fovV = mRealsense->getIntrinsics(F200Camera::COLOUR).fovV;
     mRenderCtx.colourTextures[0] = mRealsense->getTexture(F200Camera::COLOUR);
     mRenderCtx.colourTextures[1] = mRealsense->getTexture(F200Camera::COLOUR);
+    mRenderCtx.projection = mRealsense->getIntrinsics(F200Camera::COLOUR).buildGLProjection(mRenderCtx.znear, mRenderCtx.zfar);
 #endif
 
 #ifdef ENABLE_ZED

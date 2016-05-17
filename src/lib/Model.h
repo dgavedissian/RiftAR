@@ -13,12 +13,18 @@ public:
 
     void render(const glm::mat4& view, const glm::mat4& projection);
 
+    const std::vector<glm::vec3>& getVertices() const;
+
     glm::vec3 getMin() const;
     glm::vec3 getMax() const;
     glm::vec3 getSize() const;
 
+    const glm::mat4& getModelMatrix() const;
+
 private:
     void load(std::ifstream& in, std::vector<glm::vec3>& vertexData);
+
+    std::vector<glm::vec3> mVertices;
 
     GLuint mVertexArrayObject;
     GLuint mVertexBufferObject;

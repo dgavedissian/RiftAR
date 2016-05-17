@@ -15,7 +15,7 @@ RealsenseDepthAdjuster::RealsenseDepthAdjuster(F200Camera* realsense, cv::Size d
     for (int i = 0; i < 2; i++)
     {
         glBindTexture(GL_TEXTURE_2D, mDepthTextures[i]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
             mColourSize.width, mColourSize.height,
             0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -96,7 +96,7 @@ void RealsenseDepthAdjuster::warpToPair(cv::Mat& frame, const glm::mat3& destCal
     for (int i = 0; i < 2; i++)
     {
         glBindTexture(GL_TEXTURE_2D, mDepthTextures[i]);
-        TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mColourSize.width, mColourSize.height, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, warpedFrame[i].ptr()));
+        GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mColourSize.width, mColourSize.height, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, warpedFrame[i].ptr()));
     }
 }
 

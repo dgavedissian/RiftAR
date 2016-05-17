@@ -41,6 +41,9 @@ add_subdirectory(3rdparty/librealsense)
 set(INCLUDE_DIRS ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/3rdparty/librealsense/include)
 set(LIBS ${LIBS} librealsense)
 
+# Add include directories
+include_directories(${INCLUDE_DIRS})
+
 # Common library
 set(SRC_FILES
     3rdparty/gl3w.c
@@ -68,7 +71,6 @@ set(HDR_FILES
     src/lib/ZEDCVCamera.h)
 link_directories(${ZED_LIBRARY_DIR})
 add_library(Common STATIC ${SRC_FILES} ${HDR_FILES})
-target_include_directories(Common PUBLIC ${INCLUDE_DIRS})
 target_link_libraries(Common ${LIBS})
 
 # OVR
@@ -81,6 +83,7 @@ add_subdirectory(3rdparty/kfusion)
 # RiftAR
 set(RIFTAR_HDR
     src/DebugOutput.h
+    src/KFusionTracker.h
     src/OutputContext.h
     src/RealsenseDepthAdjuster.h
     src/RenderContext.h
@@ -88,12 +91,13 @@ set(RIFTAR_HDR
     src/RiftOutput.h)
 set(RIFTAR_SRC
     src/DebugOutput.cpp
+    src/KFusionTracker.cu
     src/RealsenseDepthAdjuster.cpp
     src/RenderContext.cpp
     src/RiftAR.cpp
     src/RiftOutput.cpp)
-add_executable(RiftAR ${RIFTAR_SRC} ${RIFTAR_HDR})
-target_include_directories(RiftAR PRIVATE ${OVR_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/3rdparty/kfusion)
+include_directories(${OVR_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/3rdparty/kfusion)
+cuda_add_executable(RiftAR ${RIFTAR_SRC} ${RIFTAR_HDR})
 target_link_libraries(RiftAR Common ${OVR_LIBRARY} kfusion)
 
 # StereoCalibrate

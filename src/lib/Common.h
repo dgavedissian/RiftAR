@@ -25,7 +25,10 @@ typedef unsigned int uint;
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
+#ifndef __CUDACC__
 #include <glm/gtx/string_cast.hpp>
+#endif
 
 // OpenCV
 #include <opencv2/opencv.hpp>
@@ -34,7 +37,10 @@ typedef unsigned int uint;
 #define THROW_ERROR(m) throw std::runtime_error((std::string("Error in " __FILE__) + ":" + std::to_string(__LINE__) + "\n\n") + (m))
 
 // Check GL
-#define TEST_GL(x) x; { GLenum error = glGetError(); if (error != GL_NO_ERROR) THROW_ERROR("OpenGL Error: " + std::to_string(error)); }
+#define GL_CHECK(x) x; { GLenum error = glGetError(); if (error != GL_NO_ERROR) THROW_ERROR("OpenGL Error: " + std::to_string(error)); }
+
+// Check CUDA
+#define CUDA_CHECK(x) { cudaError_t error = x; if (error != cudaSuccess) THROW_ERROR("CUDA Error: " + string(cudaGetErrorString(error))); }
 
 // App
 #include "App.h"

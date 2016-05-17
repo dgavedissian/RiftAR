@@ -32,7 +32,7 @@ ZEDCamera::ZEDCamera(sl::zed::ZEDResolution_mode resolution, int fps)
     {
         glGenTextures(1, &mTexture[eye]);
         glBindTexture(GL_TEXTURE_2D, mTexture[eye]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mIntrinsics.width, mIntrinsics.height, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mIntrinsics.width, mIntrinsics.height, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 

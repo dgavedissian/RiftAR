@@ -18,7 +18,7 @@ F200Camera::F200Camera(uint width, uint height, uint frameRate, uint streams) :
         mDevice->enable_stream(rs::stream::color, width, height, rs::format::rgba8, frameRate);
         glGenTextures(1, &mStreamTextures[0]);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[0]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
@@ -27,7 +27,7 @@ F200Camera::F200Camera(uint width, uint height, uint frameRate, uint streams) :
         mDevice->enable_stream(rs::stream::depth, width, height, rs::format::z16, frameRate);
         glGenTextures(1, &mStreamTextures[1]);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[1]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, width, height, 0, GL_RED, GL_UNSIGNED_SHORT, nullptr));
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, width, height, 0, GL_RED, GL_UNSIGNED_SHORT, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
@@ -36,7 +36,7 @@ F200Camera::F200Camera(uint width, uint height, uint frameRate, uint streams) :
         mDevice->enable_stream(rs::stream::infrared, width, height, rs::format::y8, frameRate);
         glGenTextures(1, &mStreamTextures[2]);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[2]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr));
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
@@ -45,7 +45,7 @@ F200Camera::F200Camera(uint width, uint height, uint frameRate, uint streams) :
         mDevice->enable_stream(rs::stream::infrared2, width, height, rs::format::y8, frameRate);
         glGenTextures(1, &mStreamTextures[3]);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[3]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr));
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
@@ -79,25 +79,25 @@ void F200Camera::updateTextures()
     {
         CameraIntrinsics& intr = getIntrinsics(COLOUR);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[COLOUR]);
-        TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RGBA, GL_UNSIGNED_BYTE, getRawData(COLOUR)));
+        GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RGBA, GL_UNSIGNED_BYTE, getRawData(COLOUR)));
     }
     if (mEnabledStreams & ENABLE_DEPTH)
     {
         CameraIntrinsics& intr = getIntrinsics(DEPTH);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[DEPTH]);
-        TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RED, GL_UNSIGNED_SHORT, getRawData(DEPTH)));
+        GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RED, GL_UNSIGNED_SHORT, getRawData(DEPTH)));
     }
     if (mEnabledStreams & ENABLE_INFRARED)
     {
         CameraIntrinsics& intr = getIntrinsics(INFRARED);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[INFRARED]);
-        TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RED, GL_UNSIGNED_BYTE, getRawData(INFRARED)));
+        GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RED, GL_UNSIGNED_BYTE, getRawData(INFRARED)));
     }
     if (mEnabledStreams & ENABLE_INFRARED2)
     {
         CameraIntrinsics& intr = getIntrinsics(INFRARED2);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[INFRARED2]);
-        TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RED, GL_UNSIGNED_BYTE, getRawData(INFRARED2)));
+        GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RED, GL_UNSIGNED_BYTE, getRawData(INFRARED2)));
     }
 }
 

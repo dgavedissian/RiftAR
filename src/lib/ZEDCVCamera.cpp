@@ -15,7 +15,7 @@ ZEDCVCamera::ZEDCVCamera(int device)
     for (int i = 0; i < 2; i++)
     {
         glBindTexture(GL_TEXTURE_2D, mTexture[i]);
-        TEST_GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
@@ -40,7 +40,7 @@ void ZEDCVCamera::updateTextures()
     for (int i = 0; i < 2; i++)
     {
         glBindTexture(GL_TEXTURE_2D, mTexture[i]);
-        TEST_GL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_BGR, GL_UNSIGNED_BYTE, getRawData(i)));
+        GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mWidth, mHeight, GL_BGR, GL_UNSIGNED_BYTE, getRawData(i)));
     }
 }
 

@@ -6,7 +6,8 @@
 
 Model::Model(const string& filename) :
     mVertexArrayObject(0),
-    mVertexBufferObject(0)
+    mVertexBufferObject(0),
+    mShader(nullptr)
 {
     cout << "Loading STL model: " << filename << endl;
 
@@ -38,7 +39,8 @@ Model::Model(const string& filename) :
 
 Model::~Model()
 {
-    delete mShader;
+    if (mShader)
+        delete mShader;
 }
 
 void Model::setPosition(const glm::vec3& position)
@@ -63,6 +65,11 @@ void Model::render(const glm::mat4& view, const glm::mat4& projection)
     glDrawArrays(GL_TRIANGLES, 0, mVertexCount);
 }
 
+const std::vector<glm::vec3>& Model::getVertices() const
+{
+    return mVertices;
+}
+
 glm::vec3 Model::getMin() const
 {
     return mMin;
@@ -78,13 +85,19 @@ glm::vec3 Model::getSize() const
      return mSize;
 }
 
+const glm::mat4& Model::getModelMatrix() const
+{
+    return mModelMatrix;
+}
+
 void Model::load(std::ifstream& in, std::vector<glm::vec3>& vertexData)
 {
     uint32_t triangleCount;
     in.seekg(80, std::ios::beg);
     in.read((char*)&triangleCount, sizeof(uint32_t));
 
-    vertexData.reserve(triangleCount * 6 * 3);
+    vertexData.reserve(triangleCount * 3 * 2);
+    mVertices.reserve(triangleCount * 3);
     cout << "- Triangles: " << triangleCount << endl;
 
     float inf = std::numeric_limits<float>::infinity();
@@ -123,6 +136,7 @@ void Model::load(std::ifstream& in, std::vector<glm::vec3>& vertexData)
                 mMax.z = point.z;
 
             vertexData.push_back(point);
+            mVertices.push_back(point);
             vertexData.push_back(normal);
         }
 

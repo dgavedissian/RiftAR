@@ -4,6 +4,8 @@
 #include "RiftOutput.h"
 #include "DebugOutput.h"
 
+#include "KFusionTracker.h"
+
 #include <TooN/se3.h>
 
 //#define RIFT_DISPLAY
@@ -13,40 +15,14 @@ DEFINE_MAIN(RiftAR);
 
 Image<uint16_t, HostDevice> depthImage;
 
-Matrix4 glmToKFusion(const glm::mat4& mat)
-{
-    // KFusion's Matrix4 is row major, whilst glm is column major
-    Matrix4 out;
-    for (int i = 0; i < 4; i++)
-    {
-        out.data[i].x = mat[0][i];
-        out.data[i].y = mat[1][i];
-        out.data[i].z = mat[2][i];
-        out.data[i].w = mat[3][i];
-    }
-    return out;
-}
-
-glm::mat4 kfusionToGLM(const Matrix4& mat)
-{
-    // KFusion's Matrix4 is row major, whilst glm is column major
-    glm::mat4 out;
-    for (int i = 0; i < 4; i++)
-    {
-        out[0][i] = mat.data[i].x;
-        out[1][i] = mat.data[i].y;
-        out[2][i] = mat.data[i].z;
-        out[3][i] = mat.data[i].w;
-    }
-    return out;
-}
-
 RiftAR::RiftAR()
 {
 }
 
 void RiftAR::init()
 {
+    mRenderCtx.model = nullptr;
+
     // Set up the cameras
 #ifdef ENABLE_ZED
     mZed = new ZEDCamera(sl::zed::HD720, 60);
@@ -134,7 +110,8 @@ void RiftAR::init()
 
 RiftAR::~RiftAR()
 {
-    delete mRenderCtx.model;
+    if (mRenderCtx.model)
+        delete mRenderCtx.model;
 
 #ifdef ENABLE_ZED
     delete mZed;
@@ -180,29 +157,12 @@ void RiftAR::render()
     counter++;
     cudaDeviceSynchronize();
 
-    // Copy over vertex information from the device
-    static Image<float3, Host> vertices;
-    if (vertices.size.x == 0)
-        vertices.alloc(mKFusion->vertex.size);
-    vertices = mKFusion->vertex;
-
-    // DEBUG
-    /*
-    for (int y = 0; y < vertices.size.y; y++)
-    {
-        for (int x = 0; x < vertices.size.x; x++)
-        {
-            if ((x+y) % 50 != 0)
-                continue;
-            float3& vertex = vertices.data()[y * vertices.size.x + x];
-            if (vertex.x != 0.0f)
-                cout << x << ", " << y << " - " << vertex.x << ", " << vertex.y << ", " << vertex.z << endl;
-        }
-    }
-    */
-
     // Display current position
     cout << integrate << " - " << glm::to_string(kfusionToGLM(mKFusion->pose)[3]) << endl;
+
+    // Get the cost of the head model
+    glm::mat4 model = glm::inverse(kfusionToGLM(mKFusion->pose)) * mRenderCtx.model->getModelMatrix();
+    cout << getCost(mRenderCtx.model, mKFusion->integration, model) << endl;
 
     // Warp depth textures for occlusion
 #ifdef ENABLE_ZED

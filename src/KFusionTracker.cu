@@ -9,10 +9,26 @@ const float3& reinterpretVec3AsFloat3(const glm::vec3& v)
 
 __global__ void getCostForEachVertex(float* costs, float3* vertexData, Volume volume, Matrix4 transform)
 {
-    float trunc = 1.0f;
     int index = threadIdx.x;
+
+    // Transform vertex
     float3 vertex = transform * vertexData[index];
-    costs[index] = fmin(volume.interp(vertex), trunc);
+
+    // Calculate cell position in the volume and check bounds
+    float trunc = 0.5f;
+    int3 scaledPos = make_int3(
+        vertex.x * volume.size.x / volume.dim.x,
+        vertex.y * volume.size.y / volume.dim.y,
+        vertex.z * volume.size.z / volume.dim.z);
+    if (scaledPos.x >= 0 || scaledPos.y >= 0 || scaledPos.x >= 0 ||
+        scaledPos.x < volume.size.x || scaledPos.y < volume.size.y || scaledPos.x < volume.size.z)
+    {
+        costs[index] = fmin(volume.interp(vertex), trunc);
+    }
+    else
+    {
+        costs[index] = trunc;
+    }
 }
 
 #define COUNT 16
@@ -54,8 +70,8 @@ float getCost(Model* model, Volume volume, const glm::mat4& transform)
         sum += costs[i];
 
     // Free memory and return
-    delete vertices;
-    delete costs;
+    delete[] vertices;
+    delete[] costs;
     cudaFree(deviceVertices);
     cudaFree(deviceCosts);
     return sum;

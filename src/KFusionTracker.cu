@@ -20,8 +20,8 @@ __global__ void getCostForEachVertex(float* costs, float3* vertexData, Volume vo
         vertex.x * volume.size.x / volume.dim.x,
         vertex.y * volume.size.y / volume.dim.y,
         vertex.z * volume.size.z / volume.dim.z);
-    if (scaledPos.x >= 0 || scaledPos.y >= 0 || scaledPos.x >= 0 ||
-        scaledPos.x < volume.size.x || scaledPos.y < volume.size.y || scaledPos.x < volume.size.z)
+    if (scaledPos.x >= 0 && scaledPos.y >= 0 && scaledPos.z >= 0 &&
+        scaledPos.x < volume.size.x && scaledPos.y < volume.size.y && scaledPos.z < volume.size.z)
     {
         costs[index] = fmin(volume.interp(vertex), trunc);
     }

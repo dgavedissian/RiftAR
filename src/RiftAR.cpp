@@ -8,7 +8,7 @@
 
 #include <TooN/se3.h>
 
-#define RIFT_DISPLAY
+//#define RIFT_DISPLAY
 //#define ENABLE_ZED
 
 DEFINE_MAIN(RiftAR);
@@ -137,7 +137,6 @@ void RiftAR::render()
     static cv::Mat frame;
     mRealsense->copyFrameIntoCVImage(F200Camera::DEPTH, &frame);
 
-    /*
     // Give KFusion the depth data. It must be a uint16 in mm
     memcpy(depthImage.data(), frame.data, sizeof(uint16_t) * frame.total());
     cv::Mat depthImageWrapper(cv::Size2i(depthImage.size.x, depthImage.size.y), CV_16UC1, depthImage.data());
@@ -148,23 +147,34 @@ void RiftAR::render()
     bool integrate = mKFusion->Track();
     static bool reset = true;
     static int counter = 0;
-    if (integrate || reset)
+    static int successfulIntegrations = 0;
+    if ((integrate && successfulIntegrations < 100) || reset)
     {
         mKFusion->Integrate();
         mKFusion->Raycast();
         if (counter > 2)
             reset = false;
+        successfulIntegrations++;
     }
     counter++;
     cudaDeviceSynchronize();
 
     // Display current position
-    cout << integrate << " - " << glm::to_string(kfusionToGLM(mKFusion->pose)[3]) << endl;
+    glm::mat4 cameraPoseKFusion = kfusionToGLM(mKFusion->pose);
+    glm::mat4 rotateCoordinateSystems = glm::mat4(
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, -1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, -1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+        );
+    glm::mat4 recentreCoordinateSystems = glm::translate(glm::mat4(), glm::vec3(0.0f, mKFusion->integration.dim.y, 0.0f));
+    glm::mat4 cameraPose = rotateCoordinateSystems * cameraPoseKFusion;
+    //cout << integrate << " - " << glm::to_string(cameraPoseKFusion[3]) << endl;
+    //cout << glm::to_string(cameraPose[3]) << endl;
 
     // Get the cost of the head model
-    glm::mat4 model = glm::inverse(kfusionToGLM(mKFusion->pose)) * mRenderCtx.model->getModelMatrix();
+    glm::mat4 model = cameraPoseKFusion * rotateCoordinateSystems * mRenderCtx.model->getModelMatrix();
     cout << getCost(mRenderCtx.model, mKFusion->integration, model) << endl;
-    */
 
     // Warp depth textures for occlusion
     mRealsenseDepth->warpToPair(frame, mZedCalib, mRenderCtx.eyeMatrix[0], mRenderCtx.eyeMatrix[1]);
@@ -182,6 +192,11 @@ void RiftAR::keyEvent(int key, int scancode, int action, int mods)
             DebugOutput* debug = dynamic_cast<DebugOutput*>(mOutputCtx);
             if (debug)
                 debug->toggleDebug();
+        }
+
+        if (key == GLFW_KEY_R)
+        {
+            mKFusion->Reset();
         }
     }
 }

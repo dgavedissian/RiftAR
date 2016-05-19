@@ -92,7 +92,7 @@ set(RIFTAR_HDR
 set(RIFTAR_SRC
     src/DebugOutput.cpp
     src/KFusionTracker.cu
-    src/RealsenseDepthAdjuster.cpp
+    src/RealsenseDepthAdjuster.cu
     src/RenderContext.cpp
     src/RiftAR.cpp
     src/RiftOutput.cpp)

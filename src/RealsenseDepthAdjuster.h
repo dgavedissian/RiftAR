@@ -2,6 +2,18 @@
 
 #include "lib/F200Camera.h"
 
+template <class T>
+struct DeviceImage
+{
+    uint2 size;
+    T* data;
+
+    __device__ T& operator[](const uint2& pos)
+    {
+        return data[pos.x + size.x * pos.y];
+    }
+};
+
 class RealsenseDepthAdjuster
 {
 public:
@@ -12,9 +24,8 @@ public:
     GLuint getDepthTexture(uint eye);
 
 private:
-    float reprojectRealsenseToZed(glm::vec2& point, float depth, const glm::mat3& destCalib, const glm::mat4& extrinsics);
-    void writeDepth(cv::Mat& out, int x, int y, float depth);
-    void undistortRealsense(glm::vec3& point, const std::vector<double>& coeffs);
+    void allocCuda(cv::Size srcSize);
+    void freeCuda();
 
     F200Camera* mRealsense;
 
@@ -23,4 +34,9 @@ private:
     cv::Size mColourSize;
 
     GLuint mDepthTextures[2];
+
+    DeviceImage<uint16_t> mSrcImage;
+    DeviceImage<uint32_t> mTempImage[2];
+    DeviceImage<uint16_t> mDestImage[2];
+    uint16_t* mDestImageHost[2]; // host mapping of mDestImage[0/1]
 };

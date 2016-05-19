@@ -57,7 +57,7 @@ RiftOutput::RiftOutput(cv::Size backbufferSize, float cameraFovH, float cameraFo
     glBindTexture(GL_TEXTURE_2D, mDepthBufferId);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, mBufferSize.w, mBufferSize.h, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
+    GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, mBufferSize.w, mBufferSize.h, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr));
 
     // Create a mirror texture which is used to display the result in the GLFW window
     ovrMirrorTextureDesc descMirrorTexture;
@@ -82,6 +82,7 @@ RiftOutput::RiftOutput(cv::Size backbufferSize, float cameraFovH, float cameraFo
         glm::vec2(0.5f + width * 0.5f, 0.5f + height * 0.5f));
     mFullscreenQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
     mFullscreenShader = new Shader("../media/quad.vs", "../media/quad.fs");
+    mFullscreenShader->bind();
     mFullscreenShader->setUniform("invertColour", invertColour);
     mRiftMirrorShader = new Shader("../media/quad.vs", "../media/quad.fs");
 }
@@ -135,7 +136,7 @@ void RiftOutput::renderScene(RenderContext& ctx)
         mQuad->render();
 
         // Render the scene
-        ctx.renderScene(i);
+        //ctx.renderScene(i);
     }
 
     // Commit changes to the textures so they get picked up in the next frame

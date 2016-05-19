@@ -104,7 +104,7 @@ void Model::load(std::ifstream& in, std::vector<glm::vec3>& vertexData)
     mMin = glm::vec3(inf);
     mMax = glm::vec3(-inf);
 
-    for (int i = 0; i < triangleCount; i++)
+    for (int i = 0; i < (int)triangleCount; i++)
     {
         glm::vec3 normal;
         in.read((char*)&normal.x, sizeof(float));

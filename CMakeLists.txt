@@ -48,6 +48,7 @@ include_directories(${INCLUDE_DIRS})
 set(SRC_FILES
     3rdparty/gl3w.c
     src/lib/Main.cpp
+    src/lib/Timer.cpp
     # GL helper objects ---------------
     src/lib/Rectangle2D.cpp
     src/lib/Shader.cpp
@@ -60,6 +61,7 @@ set(SRC_FILES
 set(HDR_FILES
     src/lib/App.h
     src/lib/Common.h
+    src/lib/Timer.h
     # GL helper objects ---------------
     src/lib/Rectangle2D.h
     src/lib/Shader.h

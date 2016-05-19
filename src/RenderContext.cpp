@@ -5,5 +5,5 @@
 
 void RenderContext::renderScene(int eye)
 {
-    model->render(view, projection);
+    model->render(eyeMatrix[eye] * view, projection);
 }

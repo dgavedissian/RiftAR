@@ -16,6 +16,9 @@ struct RenderContext
     glm::mat4 view, projection;
     Model* model;
 
+    // Extrinsics
+    glm::mat4 eyeMatrix[2];
+
     // Render
     void renderScene(int eye);
 };

@@ -9,7 +9,7 @@
 #include <TooN/se3.h>
 
 //#define RIFT_DISPLAY
-//#define ENABLE_ZED
+#define ENABLE_ZED
 
 DEFINE_MAIN(RiftAR);
 
@@ -137,6 +137,7 @@ void RiftAR::render()
     static cv::Mat frame;
     mRealsense->copyFrameIntoCVImage(F200Camera::DEPTH, &frame);
 
+    /*
     // Give KFusion the depth data. It must be a uint16 in mm
     memcpy(depthImage.data(), frame.data, sizeof(uint16_t) * frame.total());
     cv::Mat depthImageWrapper(cv::Size2i(depthImage.size.x, depthImage.size.y), CV_16UC1, depthImage.data());
@@ -163,15 +164,10 @@ void RiftAR::render()
     // Get the cost of the head model
     glm::mat4 model = glm::inverse(kfusionToGLM(mKFusion->pose)) * mRenderCtx.model->getModelMatrix();
     cout << getCost(mRenderCtx.model, mKFusion->integration, model) << endl;
+    */
 
     // Warp depth textures for occlusion
-#ifdef ENABLE_ZED
-    mRealsenseDepth->warpToPair(frame, mZedCalib,
-        mRealsenseToZedLeft,
-        mZed->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT) * mRealsenseToZedLeft);
-#else
-    mRealsenseDepth->warpToPair(frame, mZedCalib, mRealsenseToZedLeft, mRealsenseToZedLeft);
-#endif
+    mRealsenseDepth->warpToPair(frame, mZedCalib, mRenderCtx.eyeMatrix[0], mRenderCtx.eyeMatrix[1]);
 
     // Render scene
     mOutputCtx->renderScene(mRenderCtx);
@@ -228,4 +224,11 @@ void RiftAR::setupDepthWarpStream(cv::Size destinationSize)
 
     // Combined extrinsics mapping realsense depth to ZED left
     mRealsenseToZedLeft = realsenseColourToZedLeft * depthToColour;
+
+#ifdef ENABLE_ZED
+    mRenderCtx.eyeMatrix[0] = mRealsenseToZedLeft;
+    mRenderCtx.eyeMatrix[1] = mZed->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT) * mRealsenseToZedLeft;
+#else
+    mRenderCtx.eyeMatrix[0] = mRenderCtx.eyeMatrix[1] = mRealsenseToZedLeft;
+#endif
 }

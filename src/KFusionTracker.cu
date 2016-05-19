@@ -31,7 +31,7 @@ __global__ void getCostForEachVertex(float* costs, float3* vertexData, Volume vo
     }
 }
 
-#define COUNT 16
+#define COUNT 512
 
 float getCost(Model* model, Volume volume, const glm::mat4& transform)
 {

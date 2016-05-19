@@ -16,7 +16,7 @@ Model::Model(const string& filename) :
     std::ifstream in;
     in.open(filename, std::ios::binary | std::ios::in);
     load(in, vertexData);
-    mVertexCount = vertexData.size() / 2;
+    mVertexCount = (uint)vertexData.size() / 2;
 
     // Create vertex array object to hold buffers
     glGenVertexArrays(1, &mVertexArrayObject);

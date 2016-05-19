@@ -47,13 +47,17 @@ void RiftAR::init()
     config.volumeDimensions = make_float3(size);
     config.nearPlane = 0.01f;
     config.farPlane = 5.0f;
-    config.mu = 0.1;
+    config.mu = 0.1f;
     config.maxweight = 100.0f;
     config.combinedTrackAndReduce = false;
 
     CameraIntrinsics& intr = mRealsense->getIntrinsics(F200Camera::DEPTH);
     config.inputSize = make_uint2(intr.width, intr.height);
-    config.camera = make_float4(intr.cameraMatrix.at<double>(0, 0), intr.cameraMatrix.at<double>(1, 1), intr.cameraMatrix.at<double>(0, 2), intr.cameraMatrix.at<double>(1, 2));
+    config.camera = make_float4(
+        (float)intr.cameraMatrix.at<double>(0, 0),
+        (float)intr.cameraMatrix.at<double>(1, 1),
+        (float)intr.cameraMatrix.at<double>(0, 2),
+        (float)intr.cameraMatrix.at<double>(1, 2));
 
     // config.iterations is a vector<int>, the length determines
     // the number of levels to be used in tracking
@@ -144,6 +148,7 @@ void RiftAR::render()
     mKFusion->setKinectDeviceDepth(depthImage.getDeviceImage());
 
     // Integrate new data using KFusion module
+    /*
     bool integrate = mKFusion->Track();
     static bool reset = true;
     static int counter = 0;
@@ -175,6 +180,7 @@ void RiftAR::render()
     // Get the cost of the head model
     glm::mat4 model = cameraPoseKFusion * rotateCoordinateSystems * mRenderCtx.model->getModelMatrix();
     cout << getCost(mRenderCtx.model, mKFusion->integration, model) << endl;
+    */
 
     // Warp depth textures for occlusion
     mRealsenseDepth->warpToPair(frame, mZedCalib, mRenderCtx.eyeMatrix[0], mRenderCtx.eyeMatrix[1]);

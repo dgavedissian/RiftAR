@@ -17,7 +17,7 @@ __global__ void getCostForEachVertex(float* costs, float3* vertexData, int verte
     float3 vertex = transform * vertexData[index];
 
     // Calculate cell position in the volume and check bounds
-    float trunc = 0.5f;
+    float trunc = 0.25f;
     int3 scaledPos = make_int3(
         vertex.x * volume.size.x / volume.dim.x,
         vertex.y * volume.size.y / volume.dim.y,
@@ -25,7 +25,7 @@ __global__ void getCostForEachVertex(float* costs, float3* vertexData, int verte
     if (scaledPos.x >= 0 && scaledPos.y >= 0 && scaledPos.z >= 0 &&
         scaledPos.x < volume.size.x && scaledPos.y < volume.size.y && scaledPos.z < volume.size.z)
     {
-        costs[index] = fmin(volume.interp(vertex), trunc);
+        costs[index] = fmin(fabs(volume.interp(vertex)), trunc);
     }
     else
     {
@@ -70,12 +70,12 @@ float getCost(Model* model, Volume volume, const glm::mat4& transform)
     float sum = 0.0f;
     for (int i = 0; i < count; i++)
         sum += costs[i];
-    sum /= count;
+    sum *= 1000.0f / count;
 
     // Free memory and return
     delete[] vertices;
     delete[] costs;
     cudaFree(deviceVertices);
     cudaFree(deviceCosts);
-    return fabs(sum);
+    return sum;
 }

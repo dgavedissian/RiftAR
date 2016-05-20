@@ -14,8 +14,13 @@ struct RenderContext
     // Scene
     float znear, zfar;
     glm::mat4 view, projection;
+    Model* alignmentModel;
     Model* model;
+
+    // Alignment
+    bool lookForHead;
     bool foundTransform;
+    glm::mat4 headTransform;
 
     // Extrinsics
     glm::mat4 eyeMatrix[2];

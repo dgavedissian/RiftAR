@@ -16,7 +16,7 @@
 DEFINE_MAIN(RiftAR);
 
 Image<uint16_t, HostDevice> depthImage;
-drop::SimplexOptimizer optimiser(6, { 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 });
+drop::SimplexOptimizer optimiser(6, { 0.01, 0.01, 0.01, M_PI * 0.25, M_PI * 0.25, M_PI * 0.25 });
 
 class KFusionCostFunction : public drop::CostFunctionSimplex
 {
@@ -84,6 +84,7 @@ RiftAR::RiftAR()
 
 void RiftAR::init()
 {
+    mRenderCtx.alignmentModel = nullptr;
     mRenderCtx.model = nullptr;
 
     // Set up the cameras
@@ -138,11 +139,13 @@ void RiftAR::init()
 
     // Set up scene
     mRenderCtx.foundTransform = false;
+    mRenderCtx.lookForHead = false;
     mRenderCtx.backbufferSize = getSize();
     mRenderCtx.depthScale = USHRT_MAX * mRealsense->getDepthScale();
     mRenderCtx.znear = 0.01f;
     mRenderCtx.zfar = 10.0f;
-    mRenderCtx.model = new Model("../media/meshes/bob.stl");
+    mRenderCtx.alignmentModel = new Model("../media/meshes/bob.stl");
+    mRenderCtx.model = new Model("../media/meshes/graymatter.stl");
 
     // Set up output
 #ifdef ENABLE_ZED
@@ -177,6 +180,8 @@ void RiftAR::init()
 
 RiftAR::~RiftAR()
 {
+    if (mRenderCtx.alignmentModel)
+        delete mRenderCtx.alignmentModel;
     if (mRenderCtx.model)
         delete mRenderCtx.model;
 
@@ -229,16 +234,19 @@ void RiftAR::render()
     mRenderCtx.view = glm::inverse(cameraPose);
 
     // Update the position of the head model
-    if (!mRenderCtx.foundTransform)
+    if (!mRenderCtx.foundTransform && mRenderCtx.lookForHead)
     {
-        glm::mat4 headOffset = glm::translate(glm::mat4(), glm::vec3(-mRenderCtx.model->getSize().x * 0.5f, -mRenderCtx.model->getSize().y * 0.5f, -0.5f));
-        mRenderCtx.model->setTransform(cameraPose * headOffset);
+        glm::mat4 headOffset = glm::translate(glm::mat4(), glm::vec3(-mRenderCtx.alignmentModel->getSize().x * 0.5f, -mRenderCtx.alignmentModel->getSize().y * 0.5f, -0.5f));
+        mRenderCtx.alignmentModel->setTransform(cameraPose * headOffset);
 
         // Get the cost of the head model
         glm::mat4 flipMesh = glm::scale(glm::mat4(), glm::vec3(1.0f, -1.0f, -1.0f));
-        glm::mat4 model = convKFusionCoordSystem(mRenderCtx.model->getTransform()) * flipMesh; // TODO: why is flipMesh required here?
-        float cost = getCost(mRenderCtx.model, mKFusion->integration, model);
-        if (cost < 0.05f)
+        glm::mat4 model = convKFusionCoordSystem(mRenderCtx.alignmentModel->getTransform()) * flipMesh; // TODO: why is flipMesh required here?
+        float cost = getCost(mRenderCtx.alignmentModel, mKFusion->integration, model);
+        cout << "min: " << glm::to_string(model * glm::vec4(mRenderCtx.alignmentModel->getMin(), 1.0f)) << endl;
+        cout << "max: " << glm::to_string(model * glm::vec4(mRenderCtx.alignmentModel->getMax(), 1.0f)) << endl;
+        cout << cost << endl;
+        if (cost < 200.0f)
         {
             // Convert matrix into 6 parameters for the optimiser function
             std::vector<double> parameters;
@@ -247,17 +255,23 @@ void RiftAR::render()
             cout << parameters[0] << ", " << parameters[1] << ", " << parameters[2] << ", " << glm::degrees(parameters[3]) << ", " << glm::degrees(parameters[4]) << ", " << glm::degrees(parameters[5]) << endl;
 
             // The cost is low enough, lets optimise it further!
-            optimiser.cost_function(std::shared_ptr<KFusionCostFunction>(new KFusionCostFunction(mRenderCtx.model, mKFusion->integration)));
+            optimiser.cost_function(std::shared_ptr<KFusionCostFunction>(new KFusionCostFunction(mRenderCtx.alignmentModel, mKFusion->integration)));
             optimiser.init_parameters(parameters);
             drop::SimplexOptimizer::Termination term = optimiser.run();
-            cout << "Terminated because of: " << term << endl;
+            cout << "SimplexOptimizer terminated with code " << term << endl;
 
-            // Optimisation done! Set the final transformation matrix
+            // Optimisation done! Read the final transformation matrix
             parameters = optimiser.parameters();
             cout << parameters[0] << ", " << parameters[1] << ", " << parameters[2] << ", " << glm::degrees(parameters[3]) << ", " << glm::degrees(parameters[4]) << ", " << glm::degrees(parameters[5]) << endl;
             glm::mat4 location = KFusionCostFunction::mat4FromParameters(parameters);
-            mRenderCtx.model->setTransform(convKFusionCoordSystem(location * flipMesh));
+            cout << "Original Cost: " << cost << endl << "Final cost: " << getCost(mRenderCtx.alignmentModel, mKFusion->integration, location) << endl;
+
+            // Update the render context
             mRenderCtx.foundTransform = true;
+            mRenderCtx.lookForHead = false;
+            mRenderCtx.headTransform = convKFusionCoordSystem(location * flipMesh);
+            mRenderCtx.alignmentModel->setTransform(mRenderCtx.headTransform);
+            mRenderCtx.model->setTransform(mRenderCtx.headTransform);
         }
     }
 
@@ -277,6 +291,11 @@ void RiftAR::keyEvent(int key, int scancode, int action, int mods)
             DebugOutput* debug = dynamic_cast<DebugOutput*>(mOutputCtx);
             if (debug)
                 debug->toggleDebug();
+        }
+
+        if (key == GLFW_KEY_L)
+        {
+            mRenderCtx.lookForHead = true;
         }
 
         if (key == GLFW_KEY_R)

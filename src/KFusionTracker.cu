@@ -68,6 +68,7 @@ float getCost(Model* model, Volume volume, const glm::mat4& transform)
     float sum = 0.0f;
     for (int i = 0; i < COUNT; i++)
         sum += costs[i];
+    sum /= COUNT;
 
     // Free memory and return
     delete[] vertices;

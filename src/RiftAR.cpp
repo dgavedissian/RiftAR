@@ -8,12 +8,75 @@
 
 #include <TooN/se3.h>
 
+#include "simplex/dropSimplex.h"
+
 //#define RIFT_DISPLAY
 //#define ENABLE_ZED
 
 DEFINE_MAIN(RiftAR);
 
 Image<uint16_t, HostDevice> depthImage;
+drop::SimplexOptimizer optimiser(6, { 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 });
+
+class KFusionCostFunction : public drop::CostFunctionSimplex
+{
+public:
+    KFusionCostFunction(Model* model, Volume volume) :
+        mModel(model),
+        mVolume(volume)
+    {
+    }
+
+    virtual double evaluate(const std::vector<double> &parameters)
+    {
+        return (double)getCost(mModel, mVolume, mat4FromParameters(parameters));
+    }
+
+    static glm::mat4 mat4FromParameters(const std::vector<double>& parameters)
+    {
+        // Build matrix from the 6 parameters [x, y, z, pitch, yaw, roll]
+        glm::mat4 translation = glm::translate(glm::mat4(), glm::vec3(parameters[0], parameters[1], parameters[2]));
+        glm::mat4 rotation = glm::yawPitchRoll((float)parameters[4], (float)parameters[3], (float)parameters[5]);
+        return translation * rotation;
+    }
+
+    static void mat4ToParameters(const glm::mat4& matrix, std::vector<double>& parameters)
+    {
+        parameters[0] = matrix[3][0];
+        parameters[1] = matrix[3][1];
+        parameters[2] = matrix[3][2];
+
+        glm::vec3 eulerAngles = glm::eulerAngles(glm::quat_cast(matrix));
+        parameters[3] = eulerAngles.x;
+        parameters[4] = eulerAngles.y;
+        parameters[5] = eulerAngles.z;
+    }
+
+private:
+    Model* mModel;
+    Volume mVolume;
+
+};
+
+glm::vec3 newOrigin(0.0f, 1.5f, 0.0f);
+
+glm::mat3 convKFusionCoordSystem(const glm::mat3& rotation)
+{
+    glm::quat q = glm::quat_cast(rotation);
+
+    // Mirror along x axis
+    q.y *= -1.0f;
+    q.z *= -1.0f;
+
+    return glm::mat3_cast(q);
+}
+
+glm::mat4 convKFusionCoordSystem(const glm::mat4& transform)
+{
+    glm::mat4 newOrientation = glm::mat4(convKFusionCoordSystem(glm::mat3(transform)));
+    glm::mat4 newPosition = glm::translate(glm::mat4(), glm::vec3(transform[3]) * glm::vec3(1.0f, -1.0f, -1.0f) + newOrigin);
+    return newPosition * newOrientation;
+}
 
 RiftAR::RiftAR()
 {
@@ -79,7 +142,6 @@ void RiftAR::init()
     mRenderCtx.znear = 0.01f;
     mRenderCtx.zfar = 10.0f;
     mRenderCtx.model = new Model("../media/meshes/bob.stl");
-    mRenderCtx.model->setPosition(glm::vec3(-mRenderCtx.model->getSize().x * 0.5f, -mRenderCtx.model->getSize().y * 0.5f, -0.5f));
 
     // Set up output
 #ifdef ENABLE_ZED
@@ -148,7 +210,6 @@ void RiftAR::render()
     mKFusion->setKinectDeviceDepth(depthImage.getDeviceImage());
 
     // Integrate new data using KFusion module
-    /*
     bool integrate = mKFusion->Track();
     static bool reset = true;
     static int counter = 0;
@@ -165,22 +226,42 @@ void RiftAR::render()
     cudaDeviceSynchronize();
 
     // Display current position
-    glm::mat4 cameraPoseKFusion = kfusionToGLM(mKFusion->pose);
-    glm::mat4 rotateCoordinateSystems = glm::mat4(
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, -1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, -1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-        );
-    glm::mat4 recentreCoordinateSystems = glm::translate(glm::mat4(), glm::vec3(0.0f, mKFusion->integration.dim.y, 0.0f));
-    glm::mat4 cameraPose = rotateCoordinateSystems * cameraPoseKFusion;
-    //cout << integrate << " - " << glm::to_string(cameraPoseKFusion[3]) << endl;
-    //cout << glm::to_string(cameraPose[3]) << endl;
+    glm::mat4 cameraPose = convKFusionCoordSystem(kfusionToGLM(mKFusion->pose));
+    mRenderCtx.view = glm::inverse(cameraPose);
 
-    // Get the cost of the head model
-    glm::mat4 model = cameraPoseKFusion * rotateCoordinateSystems * mRenderCtx.model->getModelMatrix();
-    cout << getCost(mRenderCtx.model, mKFusion->integration, model) << endl;
-    */
+    // Update the position of the head model
+    static bool foundTransform = false;
+    if (!foundTransform)
+    {
+        glm::mat4 headOffset = glm::translate(glm::mat4(), glm::vec3(-mRenderCtx.model->getSize().x * 0.5f, -mRenderCtx.model->getSize().y * 0.5f, -0.5f));
+        mRenderCtx.model->setTransform(cameraPose * headOffset);
+
+        // Get the cost of the head model
+        glm::mat4 flipMesh = glm::scale(glm::mat4(), glm::vec3(1.0f, -1.0f, -1.0f));
+        glm::mat4 model = convKFusionCoordSystem(mRenderCtx.model->getTransform()) * flipMesh; // TODO: why is flipMesh required here?
+        float cost = getCost(mRenderCtx.model, mKFusion->integration, model);
+        if (cost < 0.15f)
+        {
+            // Convert matrix into 6 parameters for the optimiser function
+            std::vector<double> parameters;
+            parameters.resize(6);
+            KFusionCostFunction::mat4ToParameters(model, parameters);
+            cout << parameters[0] << ", " << parameters[1] << ", " << parameters[2] << ", " << glm::degrees(parameters[3]) << ", " << glm::degrees(parameters[4]) << ", " << glm::degrees(parameters[5]) << endl;
+
+            // The cost is low enough, lets optimise it further!
+            optimiser.cost_function(std::shared_ptr<KFusionCostFunction>(new KFusionCostFunction(mRenderCtx.model, mKFusion->integration)));
+            optimiser.init_parameters(parameters);
+            optimiser.run();
+
+            // Optimisation done! What parameters did we get?
+            parameters = optimiser.parameters();
+            cout << parameters[0] << ", " << parameters[1] << ", " << parameters[2] << ", " << glm::degrees(parameters[3]) << ", " << glm::degrees(parameters[4]) << ", " << glm::degrees(parameters[5]) << endl;
+            glm::mat4 location = KFusionCostFunction::mat4FromParameters(parameters);
+
+            foundTransform = true;
+            mRenderCtx.model->setTransform(convKFusionCoordSystem(location * flipMesh));
+        }
+    }
 
     // Warp depth textures for occlusion
     mRealsenseDepth->warpToPair(frame, mZedCalib, mRenderCtx.eyeMatrix[0], mRenderCtx.eyeMatrix[1]);

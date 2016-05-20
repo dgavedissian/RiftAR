@@ -45,22 +45,27 @@ Model::~Model()
 
 void Model::setPosition(const glm::vec3& position)
 {
-    mModelMatrix[3] = glm::vec4(position, 1.0f);
+    mTransform[3] = glm::vec4(position, 1.0f);
 }
 
 void Model::setOrientation(const glm::quat& orientation)
 {
     glm::mat3 rotationMatrix = glm::mat3_cast(orientation);
-    mModelMatrix[0] = glm::vec4(rotationMatrix[0], 0.0f);
-    mModelMatrix[1] = glm::vec4(rotationMatrix[1], 0.0f);
-    mModelMatrix[2] = glm::vec4(rotationMatrix[2], 0.0f);
+    mTransform[0] = glm::vec4(rotationMatrix[0], 0.0f);
+    mTransform[1] = glm::vec4(rotationMatrix[1], 0.0f);
+    mTransform[2] = glm::vec4(rotationMatrix[2], 0.0f);
+}
+
+void Model::setTransform(const glm::mat4& transform)
+{
+    mTransform = transform;
 }
 
 void Model::render(const glm::mat4& view, const glm::mat4& projection)
 {
     mShader->bind();
-    mShader->setUniform("modelViewProjectionMatrix", projection * view * mModelMatrix);
-    mShader->setUniform("modelMatrix", mModelMatrix);
+    mShader->setUniform("modelViewProjectionMatrix", projection * view * mTransform);
+    mShader->setUniform("modelMatrix", mTransform);
     glBindVertexArray(mVertexArrayObject);
     glDrawArrays(GL_TRIANGLES, 0, mVertexCount);
 }
@@ -85,9 +90,9 @@ glm::vec3 Model::getSize() const
      return mSize;
 }
 
-const glm::mat4& Model::getModelMatrix() const
+const glm::mat4& Model::getTransform() const
 {
-    return mModelMatrix;
+    return mTransform;
 }
 
 void Model::load(std::ifstream& in, std::vector<glm::vec3>& vertexData)
@@ -144,5 +149,8 @@ void Model::load(std::ifstream& in, std::vector<glm::vec3>& vertexData)
     }
 
     mSize = mMax - mMin;
+
+    cout << "min: " << glm::to_string(mMin) << endl;
+    cout << "max: " << glm::to_string(mMax) << endl;
 
 }

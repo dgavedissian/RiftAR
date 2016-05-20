@@ -15,6 +15,7 @@ struct RenderContext
     float znear, zfar;
     glm::mat4 view, projection;
     Model* model;
+    bool foundTransform;
 
     // Extrinsics
     glm::mat4 eyeMatrix[2];

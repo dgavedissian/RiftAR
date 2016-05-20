@@ -137,6 +137,7 @@ void RiftAR::init()
     setupDepthWarpStream(destinationSize);
 
     // Set up scene
+    mRenderCtx.foundTransform = false;
     mRenderCtx.backbufferSize = getSize();
     mRenderCtx.depthScale = USHRT_MAX * mRealsense->getDepthScale();
     mRenderCtx.znear = 0.01f;
@@ -213,14 +214,12 @@ void RiftAR::render()
     bool integrate = mKFusion->Track();
     static bool reset = true;
     static int counter = 0;
-    static int successfulIntegrations = 0;
-    if ((integrate && successfulIntegrations < 100) || reset)
+    if ((integrate && !mRenderCtx.foundTransform) || reset)
     {
         mKFusion->Integrate();
         mKFusion->Raycast();
         if (counter > 2)
             reset = false;
-        successfulIntegrations++;
     }
     counter++;
     cudaDeviceSynchronize();
@@ -230,8 +229,7 @@ void RiftAR::render()
     mRenderCtx.view = glm::inverse(cameraPose);
 
     // Update the position of the head model
-    static bool foundTransform = false;
-    if (!foundTransform)
+    if (!mRenderCtx.foundTransform)
     {
         glm::mat4 headOffset = glm::translate(glm::mat4(), glm::vec3(-mRenderCtx.model->getSize().x * 0.5f, -mRenderCtx.model->getSize().y * 0.5f, -0.5f));
         mRenderCtx.model->setTransform(cameraPose * headOffset);
@@ -240,7 +238,7 @@ void RiftAR::render()
         glm::mat4 flipMesh = glm::scale(glm::mat4(), glm::vec3(1.0f, -1.0f, -1.0f));
         glm::mat4 model = convKFusionCoordSystem(mRenderCtx.model->getTransform()) * flipMesh; // TODO: why is flipMesh required here?
         float cost = getCost(mRenderCtx.model, mKFusion->integration, model);
-        if (cost < 0.15f)
+        if (cost < 0.05f)
         {
             // Convert matrix into 6 parameters for the optimiser function
             std::vector<double> parameters;
@@ -251,15 +249,15 @@ void RiftAR::render()
             // The cost is low enough, lets optimise it further!
             optimiser.cost_function(std::shared_ptr<KFusionCostFunction>(new KFusionCostFunction(mRenderCtx.model, mKFusion->integration)));
             optimiser.init_parameters(parameters);
-            optimiser.run();
+            drop::SimplexOptimizer::Termination term = optimiser.run();
+            cout << "Terminated because of: " << term << endl;
 
-            // Optimisation done! What parameters did we get?
+            // Optimisation done! Set the final transformation matrix
             parameters = optimiser.parameters();
             cout << parameters[0] << ", " << parameters[1] << ", " << parameters[2] << ", " << glm::degrees(parameters[3]) << ", " << glm::degrees(parameters[4]) << ", " << glm::degrees(parameters[5]) << endl;
             glm::mat4 location = KFusionCostFunction::mat4FromParameters(parameters);
-
-            foundTransform = true;
             mRenderCtx.model->setTransform(convKFusionCoordSystem(location * flipMesh));
+            mRenderCtx.foundTransform = true;
         }
     }
 

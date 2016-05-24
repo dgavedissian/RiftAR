@@ -125,8 +125,8 @@ bool KFusionTracker::checkTargetPosition(glm::mat4& resultTransform)
         return false;
 
     // Place the object in front of the camera
-    glm::mat4 headOffset = glm::translate(glm::mat4(), mSearchTarget->getSize() * glm::vec3(-0.5f, -0.5f, -0.5f));
-    mSearchTarget->setTransform(mCameraPose * headOffset);
+    glm::mat4 modelOffset = glm::translate(glm::mat4(), mSearchTarget->getSize() * glm::vec3(-0.5f, -0.5f, -2.5f)); // 2 x model depth away from the camera (assuming it's origin is centred)
+    mSearchTarget->setTransform(mCameraPose * modelOffset);
 
     // Get the cost of the head model
     glm::mat4 flipMesh = glm::scale(glm::mat4(), glm::vec3(1.0f, -1.0f, -1.0f));

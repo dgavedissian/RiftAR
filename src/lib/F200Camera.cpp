@@ -10,6 +10,40 @@ F200Camera::F200Camera(uint width, uint height, uint frameRate, uint streams) :
     mEnabledStreams(streams)
 {
     initialiseDevice();
+
+    // Set up OpenGL
+    if (streams & ENABLE_COLOUR)
+    {
+        glGenTextures(1, &mStreamTextures[0]);
+        glBindTexture(GL_TEXTURE_2D, mStreamTextures[0]);
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+    if (streams & ENABLE_DEPTH)
+    {
+        glGenTextures(1, &mStreamTextures[1]);
+        glBindTexture(GL_TEXTURE_2D, mStreamTextures[1]);
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, width, height, 0, GL_RED, GL_UNSIGNED_SHORT, nullptr));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+    if (streams & ENABLE_INFRARED)
+    {
+        glGenTextures(1, &mStreamTextures[2]);
+        glBindTexture(GL_TEXTURE_2D, mStreamTextures[2]);
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+    if (streams & ENABLE_INFRARED2)
+    {
+        glGenTextures(1, &mStreamTextures[3]);
+        glBindTexture(GL_TEXTURE_2D, mStreamTextures[3]);
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
 }
 
 F200Camera::~F200Camera()
@@ -133,41 +167,13 @@ void F200Camera::initialiseDevice()
 
     // Set up streams
     if (mEnabledStreams & ENABLE_COLOUR)
-    {
         mDevice->enable_stream(rs::stream::color, mWidth, mHeight, rs::format::rgba8, mFrameRate);
-        glGenTextures(1, &mStreamTextures[0]);
-        glBindTexture(GL_TEXTURE_2D, mStreamTextures[0]);
-        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mWidth, mHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
     if (mEnabledStreams & ENABLE_DEPTH)
-    {
         mDevice->enable_stream(rs::stream::depth, mWidth, mHeight, rs::format::z16, mFrameRate);
-        glGenTextures(1, &mStreamTextures[1]);
-        glBindTexture(GL_TEXTURE_2D, mStreamTextures[1]);
-        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, mWidth, mHeight, 0, GL_RED, GL_UNSIGNED_SHORT, nullptr));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
     if (mEnabledStreams & ENABLE_INFRARED)
-    {
         mDevice->enable_stream(rs::stream::infrared, mWidth, mHeight, rs::format::y8, mFrameRate);
-        glGenTextures(1, &mStreamTextures[2]);
-        glBindTexture(GL_TEXTURE_2D, mStreamTextures[2]);
-        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, mWidth, mHeight, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
     if (mEnabledStreams & ENABLE_INFRARED2)
-    {
         mDevice->enable_stream(rs::stream::infrared2, mWidth, mHeight, rs::format::y8, mFrameRate);
-        glGenTextures(1, &mStreamTextures[3]);
-        glBindTexture(GL_TEXTURE_2D, mStreamTextures[3]);
-        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, mWidth, mHeight, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
 
     // Start the device
     mDevice->start();

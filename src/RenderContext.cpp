@@ -11,7 +11,7 @@ void RenderContext::renderScene(int eye)
         alignmentModel->render(eyeMatrix[eye] * view, projection);
         glDepthFunc(GL_LESS);
     }
-    else if (lookForHead)
+    else if (lookingForHead)
     {
         alignmentModel->render(eyeMatrix[eye] * view, projection);
     }

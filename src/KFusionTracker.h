@@ -2,35 +2,61 @@
 
 #include <kfusion/kfusion.h>
 
+#include "simplex/dropSimplex.h"
+
 class Model;
+class F200Camera;
 
-inline Matrix4 glmToKFusion(const glm::mat4& mat)
+class KFusionTracker
 {
-    // KFusion's Matrix4 is row major, whilst glm is column major
-    Matrix4 out;
-    for (int i = 0; i < 4; i++)
-    {
-        out.data[i].x = mat[0][i];
-        out.data[i].y = mat[1][i];
-        out.data[i].z = mat[2][i];
-        out.data[i].w = mat[3][i];
-    }
-    return out;
-}
+public:
+    KFusionTracker(F200Camera* camera);
+    ~KFusionTracker();
 
-inline glm::mat4 kfusionToGLM(const Matrix4& mat)
-{
-    // KFusion's Matrix4 is row major, whilst glm is column major
-    glm::mat4 out;
-    for (int i = 0; i < 4; i++)
-    {
-        out[0][i] = mat.data[i].x;
-        out[1][i] = mat.data[i].y;
-        out[2][i] = mat.data[i].z;
-        out[3][i] = mat.data[i].w;
-    }
-    return out;
-}
+    void update(cv::Mat frame);
 
-// Sum of the distance values of each vertex looked up in KFusions signed distance field
-float getCost(Model* model, Volume volume, const glm::mat4& transform);
+    void beginSearchingFor(Model* target);
+    bool checkTargetPosition(glm::mat4& resultTransform);
+    bool isSearching() const;
+
+    void reset();
+
+    glm::mat4 getCameraPose() const;
+
+private:
+    float getCost(Model* model, Volume volume, const glm::mat4& transform);
+
+    glm::mat3 convKFusionCoordSystem(const glm::mat3& rotation) const;
+    glm::mat4 convKFusionCoordSystem(const glm::mat4& transform) const;
+
+    // Cost Function
+    class CostFunction : public drop::CostFunctionSimplex
+    {
+    public:
+        CostFunction(Model* model, Volume volume, KFusionTracker* tracker);
+
+        virtual double evaluate(const std::vector<double> &parameters);
+
+        static glm::mat4 mat4FromParameters(const std::vector<double>& parameters);
+        static void mat4ToParameters(const glm::mat4& matrix, std::vector<double>& parameters);
+
+    private:
+        Model* mModel;
+        Volume mVolume;
+        KFusionTracker* mTracker;
+
+    };
+
+    // KFusion
+    F200Camera* mSource;
+    KFusion* mKFusion;
+    Image<uint16_t, HostDevice> mDepthImage;
+    glm::vec3 mNewOrigin;
+    drop::SimplexOptimizer mOptimiser;
+
+    // Current pose
+    glm::mat4 mCameraPose;
+
+    // Searching
+    Model* mSearchTarget; // when this is nullptr, we are not searching for anything
+};

@@ -18,7 +18,7 @@ struct RenderContext
     Model* model;
 
     // Alignment
-    bool lookForHead;
+    bool lookingForHead;
     bool foundTransform;
     glm::mat4 headTransform;
 

@@ -84,7 +84,7 @@ add_subdirectory(3rdparty/kfusion)
 
 # RiftAR
 set(RIFTAR_HDR
-    src/simplex/dropSimplex.h
+    src/simplex/DropSimplex.h
     src/DebugOutput.h
     src/KFusionTracker.h
     src/OutputContext.h
@@ -93,7 +93,7 @@ set(RIFTAR_HDR
     src/RiftAR.h
     src/RiftOutput.h)
 set(RIFTAR_SRC
-    src/simplex/dropSimplex.cpp
+    src/simplex/DropSimplex.cpp
     src/DebugOutput.cpp
     src/KFusionTracker.cu
     src/RealsenseDepthAdjuster.cu

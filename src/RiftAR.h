@@ -1,7 +1,5 @@
 #pragma once
 
-#include <kfusion/kfusion.h>
-
 #include "lib/F200Camera.h"
 #include "lib/ZEDCamera.h"
 
@@ -11,6 +9,7 @@
 
 #include "OutputContext.h"
 #include "RealsenseDepthAdjuster.h"
+#include "KFusionTracker.h"
 
 class RiftAR : public App
 {
@@ -30,7 +29,7 @@ private:
     F200Camera* mRealsense;
 
     // KFusion
-    KFusion* mKFusion;
+    KFusionTracker* mTracking;
 
     // Warp parameters
     RealsenseDepthAdjuster* mRealsenseDepth;

@@ -41,11 +41,6 @@ inline string toString(const glm::vec4& v)
     return ss.str();
 }
 
-inline const float3& reinterpretVec3AsFloat3(const glm::vec3& v)
-{
-    return *reinterpret_cast<const float3*>(&v);
-}
-
 KFusionTracker::KFusionTracker(F200Camera* camera) :
     mSource(camera),
     mOptimiser(6, { 0.01, 0.01, 0.01, M_PI * 0.25, M_PI * 0.25, M_PI * 0.25 }),
@@ -112,6 +107,9 @@ void KFusionTracker::update(cv::Mat frame)
 
     // Update the current pose
     mCameraPose = convKFusionCoordSystem(kfusionToGLM(mKFusion->pose));
+
+    // Display integration state
+    //cout << shouldIntegrate << " - " << toString(mCameraPose[3]) << endl;
 }
 
 void KFusionTracker::beginSearchingFor(Model* target)
@@ -132,8 +130,6 @@ bool KFusionTracker::checkTargetPosition(glm::mat4& resultTransform)
     glm::mat4 flipMesh = glm::scale(glm::mat4(), glm::vec3(1.0f, -1.0f, -1.0f));
     glm::mat4 model = convKFusionCoordSystem(mSearchTarget->getTransform()) * flipMesh; // TODO: why is flipMesh required here?
     float cost = getCost(mSearchTarget, mKFusion->integration, model);
-    cout << "min: " << toString(model * glm::vec4(mSearchTarget->getMin(), 1.0f)) << endl;
-    cout << "max: " << toString(model * glm::vec4(mSearchTarget->getMax(), 1.0f)) << endl;
     cout << cost << endl;
     if (cost < 200.0f)
     {

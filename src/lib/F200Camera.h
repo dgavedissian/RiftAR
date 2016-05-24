@@ -40,9 +40,12 @@ public:
     float getDepthScale() { return mDevice->get_depth_scale(); }
 
 private:
+    uint mWidth, mHeight, mFrameRate;
     int mEnabledStreams;
     rs::context* mContext;
     rs::device* mDevice;
+
+    void initialiseDevice();
 
     GLuint mStreamTextures[STREAM_COUNT]; // one for each stream
 

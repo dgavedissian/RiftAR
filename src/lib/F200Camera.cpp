@@ -4,54 +4,12 @@
 #include <limits>
 
 F200Camera::F200Camera(uint width, uint height, uint frameRate, uint streams) :
+    mWidth(width),
+    mHeight(height),
+    mFrameRate(frameRate),
     mEnabledStreams(streams)
 {
-    rs::log_to_console(rs::log_severity::warn);
-    mContext = new rs::context();
-    if (mContext->get_device_count() == 0)
-        THROW_ERROR("Unable to detect the RealsenseF200");
-    mDevice = mContext->get_device(0);
-    
-    // Set up streams
-    if (streams & ENABLE_COLOUR)
-    {
-        mDevice->enable_stream(rs::stream::color, width, height, rs::format::rgba8, frameRate);
-        glGenTextures(1, &mStreamTextures[0]);
-        glBindTexture(GL_TEXTURE_2D, mStreamTextures[0]);
-        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
-    if (streams & ENABLE_DEPTH)
-    {
-        mDevice->enable_stream(rs::stream::depth, width, height, rs::format::z16, frameRate);
-        glGenTextures(1, &mStreamTextures[1]);
-        glBindTexture(GL_TEXTURE_2D, mStreamTextures[1]);
-        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, width, height, 0, GL_RED, GL_UNSIGNED_SHORT, nullptr));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
-    if (streams & ENABLE_INFRARED)
-    {
-        mDevice->enable_stream(rs::stream::infrared, width, height, rs::format::y8, frameRate);
-        glGenTextures(1, &mStreamTextures[2]);
-        glBindTexture(GL_TEXTURE_2D, mStreamTextures[2]);
-        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
-    if (streams & ENABLE_INFRARED2)
-    {
-        mDevice->enable_stream(rs::stream::infrared2, width, height, rs::format::y8, frameRate);
-        glGenTextures(1, &mStreamTextures[3]);
-        glBindTexture(GL_TEXTURE_2D, mStreamTextures[3]);
-        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
-
-    // Start the device
-    mDevice->start();
+    initialiseDevice();
 }
 
 F200Camera::~F200Camera()
@@ -65,9 +23,11 @@ void F200Camera::capture()
     {
         mDevice->wait_for_frames();
     }
-    catch (std::exception&)
+    catch (rs::error&)
     {
-        // Ignore
+        cout << "F200 was disconnected randomly due to tugging of the wire - attempting to reinitialise..." << endl;
+        delete mContext;
+        initialiseDevice();
     }
 }
 
@@ -161,6 +121,56 @@ glm::mat4 F200Camera::getExtrinsics(uint camera1, uint camera2) const
 GLuint F200Camera::getTexture(uint camera) const
 {
     return mStreamTextures[camera];
+}
+
+void F200Camera::initialiseDevice()
+{
+    rs::log_to_console(rs::log_severity::warn);
+    mContext = new rs::context();
+    if (mContext->get_device_count() == 0)
+        THROW_ERROR("Unable to detect the RealsenseF200");
+    mDevice = mContext->get_device(0);
+
+    // Set up streams
+    if (mEnabledStreams & ENABLE_COLOUR)
+    {
+        mDevice->enable_stream(rs::stream::color, mWidth, mHeight, rs::format::rgba8, mFrameRate);
+        glGenTextures(1, &mStreamTextures[0]);
+        glBindTexture(GL_TEXTURE_2D, mStreamTextures[0]);
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mWidth, mHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+    if (mEnabledStreams & ENABLE_DEPTH)
+    {
+        mDevice->enable_stream(rs::stream::depth, mWidth, mHeight, rs::format::z16, mFrameRate);
+        glGenTextures(1, &mStreamTextures[1]);
+        glBindTexture(GL_TEXTURE_2D, mStreamTextures[1]);
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, mWidth, mHeight, 0, GL_RED, GL_UNSIGNED_SHORT, nullptr));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+    if (mEnabledStreams & ENABLE_INFRARED)
+    {
+        mDevice->enable_stream(rs::stream::infrared, mWidth, mHeight, rs::format::y8, mFrameRate);
+        glGenTextures(1, &mStreamTextures[2]);
+        glBindTexture(GL_TEXTURE_2D, mStreamTextures[2]);
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, mWidth, mHeight, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+    if (mEnabledStreams & ENABLE_INFRARED2)
+    {
+        mDevice->enable_stream(rs::stream::infrared2, mWidth, mHeight, rs::format::y8, mFrameRate);
+        glGenTextures(1, &mStreamTextures[3]);
+        glBindTexture(GL_TEXTURE_2D, mStreamTextures[3]);
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, mWidth, mHeight, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+
+    // Start the device
+    mDevice->start();
 }
 
 rs::stream F200Camera::mapCameraToStream(uint camera) const

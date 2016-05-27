@@ -11,6 +11,11 @@ RealsenseCamera::RealsenseCamera(uint width, uint height, uint frameRate, uint s
 {
     initialiseDevice();
 
+    // Initialise stream data
+    mStreamData[COLOUR] = cv::Mat::zeros(width, height, CV_8UC3);
+    mStreamData[DEPTH] = cv::Mat::ones(width, height, CV_16UC1);
+    mStreamData[INFRARED] = cv::Mat::zeros(width, height, CV_8UC1);
+
     // Launch capture loop
     mIsCapturing = true;
     mCaptureThread = new std::thread(&RealsenseCamera::captureLoop, this);

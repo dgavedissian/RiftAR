@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lib/F200Camera.h"
+#include "lib/RealsenseCamera.h"
 #include "lib/ZEDCamera.h"
 
 #include "lib/Rectangle2D.h"
@@ -26,7 +26,7 @@ private:
     void setupDepthWarpStream(cv::Size destinationSize);
 
     ZEDCamera* mZed;
-    F200Camera* mRealsense;
+    RealsenseCamera* mRealsense;
 
     // KFusion
     KFusionTracker* mTracking;

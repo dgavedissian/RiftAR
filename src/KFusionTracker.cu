@@ -1,6 +1,6 @@
 #include "lib/Common.h"
 #include "lib/Model.h"
-#include "lib/F200Camera.h"
+#include "lib/RealsenseCamera.h"
 #include "KFusionTracker.h"
 
 #include <TooN/se3.h>
@@ -41,7 +41,7 @@ inline string toString(const glm::vec4& v)
     return ss.str();
 }
 
-KFusionTracker::KFusionTracker(F200Camera* camera) :
+KFusionTracker::KFusionTracker(RealsenseCamera* camera) :
     mSource(camera),
     mOptimiser(6, { 0.01, 0.01, 0.01, M_PI * 0.25, M_PI * 0.25, M_PI * 0.25 }),
     mNewOrigin(0.0f, 1.5f, 0.0f),
@@ -59,7 +59,7 @@ KFusionTracker::KFusionTracker(F200Camera* camera) :
     config.maxweight = 100.0f;
     config.combinedTrackAndReduce = false;
 
-    CameraIntrinsics& intr = camera->getIntrinsics(F200Camera::DEPTH);
+    CameraIntrinsics& intr = camera->getIntrinsics(RealsenseCamera::DEPTH);
     config.inputSize = make_uint2(intr.width, intr.height);
     config.camera = make_float4(
         (float)intr.cameraMatrix.at<double>(0, 0),

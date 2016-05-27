@@ -6,7 +6,7 @@
 
 #include "CameraSource.h"
 
-class F200Camera : public CameraSource
+class RealsenseCamera : public CameraSource
 {
 public:
     enum
@@ -24,8 +24,8 @@ public:
         STREAM_COUNT
     };
 
-    F200Camera(uint width, uint height, uint frameRate, uint streams);
-    ~F200Camera();
+    RealsenseCamera(uint width, uint height, uint frameRate, uint streams);
+    ~RealsenseCamera();
 
     void capture() override;
     void updateTextures() override;

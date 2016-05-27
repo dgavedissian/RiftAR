@@ -55,7 +55,7 @@ set(SRC_FILES
 	src/lib/Model.cpp
     # Cameras -------------------------
     src/lib/CameraSource.cpp
-    src/lib/F200Camera.cpp
+    src/lib/RealsenseCamera.cpp
     src/lib/ZEDCamera.cpp)
 set(HDR_FILES
     src/lib/App.h
@@ -67,7 +67,7 @@ set(HDR_FILES
 	src/lib/Model.h
     # Cameras -------------------------
     src/lib/CameraSource.h
-    src/lib/F200Camera.h
+    src/lib/RealsenseCamera.h
     src/lib/ZEDCamera.h)
 link_directories(${ZED_LIBRARY_DIR})
 add_library(Common STATIC ${SRC_FILES} ${HDR_FILES})

@@ -1,9 +1,9 @@
 #include "Common.h"
-#include "F200Camera.h"
+#include "RealsenseCamera.h"
 
 #include <limits>
 
-F200Camera::F200Camera(uint width, uint height, uint frameRate, uint streams) :
+RealsenseCamera::RealsenseCamera(uint width, uint height, uint frameRate, uint streams) :
     mWidth(width),
     mHeight(height),
     mFrameRate(frameRate),
@@ -13,7 +13,7 @@ F200Camera::F200Camera(uint width, uint height, uint frameRate, uint streams) :
 
     // Launch capture loop
     mIsCapturing = true;
-    mCaptureThread = new std::thread(&F200Camera::captureLoop, this);
+    mCaptureThread = new std::thread(&RealsenseCamera::captureLoop, this);
 
     // Set up OpenGL
     if (streams & ENABLE_COLOUR)
@@ -42,7 +42,7 @@ F200Camera::F200Camera(uint width, uint height, uint frameRate, uint streams) :
     }
 }
 
-F200Camera::~F200Camera()
+RealsenseCamera::~RealsenseCamera()
 {
     mIsCapturing = false;
     mCaptureThread->join();
@@ -50,12 +50,12 @@ F200Camera::~F200Camera()
     delete mCaptureThread;
 }
 
-void F200Camera::capture()
+void RealsenseCamera::capture()
 {
     // Do nothing
 }
 
-void F200Camera::updateTextures()
+void RealsenseCamera::updateTextures()
 {
     mFrameAccessMutex.lock();
     if (mEnabledStreams & ENABLE_COLOUR)
@@ -79,7 +79,7 @@ void F200Camera::updateTextures()
     mFrameAccessMutex.unlock();
 }
 
-void F200Camera::copyFrameIntoCVImage(uint camera, cv::Mat* mat)
+void RealsenseCamera::copyFrameIntoCVImage(uint camera, cv::Mat* mat)
 {
     if (camera >= STREAM_COUNT)
         THROW_ERROR("Invalid stream");
@@ -89,19 +89,19 @@ void F200Camera::copyFrameIntoCVImage(uint camera, cv::Mat* mat)
     mFrameAccessMutex.unlock();
 }
 
-const void* F200Camera::getRawData(uint camera)
+const void* RealsenseCamera::getRawData(uint camera)
 {
     return mDevice->get_frame_data(mapCameraToStream(camera));
 }
 
-CameraIntrinsics F200Camera::getIntrinsics(uint camera) const
+CameraIntrinsics RealsenseCamera::getIntrinsics(uint camera) const
 {
     // get_stream_intrinsics is a const method which means that it is thread-safe. As there are no functions
     // which modify the intrinsics, there are no race conditions here.
     return buildIntrinsics(mDevice->get_stream_intrinsics(mapCameraToStream(camera)));
 }
 
-glm::mat4 F200Camera::getExtrinsics(uint camera1, uint camera2) const
+glm::mat4 RealsenseCamera::getExtrinsics(uint camera1, uint camera2) const
 {
     // Mapping a camera to itself
     if (camera1 == camera2)
@@ -122,12 +122,12 @@ glm::mat4 F200Camera::getExtrinsics(uint camera1, uint camera2) const
     return out;
 }
 
-GLuint F200Camera::getTexture(uint camera) const
+GLuint RealsenseCamera::getTexture(uint camera) const
 {
     return mStreamTextures[camera];
 }
 
-void F200Camera::initialiseDevice()
+void RealsenseCamera::initialiseDevice()
 {
     rs::log_to_console(rs::log_severity::warn);
     mContext = new rs::context();
@@ -147,7 +147,7 @@ void F200Camera::initialiseDevice()
     mDevice->start();
 }
 
-rs::stream F200Camera::mapCameraToStream(uint camera) const
+rs::stream RealsenseCamera::mapCameraToStream(uint camera) const
 {
     switch (camera)
     {
@@ -158,7 +158,7 @@ rs::stream F200Camera::mapCameraToStream(uint camera) const
     }
 }
 
-CameraIntrinsics F200Camera::buildIntrinsics(rs::intrinsics& intr) const
+CameraIntrinsics RealsenseCamera::buildIntrinsics(rs::intrinsics& intr) const
 {
     CameraIntrinsics out;
 
@@ -179,7 +179,7 @@ CameraIntrinsics F200Camera::buildIntrinsics(rs::intrinsics& intr) const
     return out;
 }
 
-void F200Camera::captureLoop()
+void RealsenseCamera::captureLoop()
 {
     while (mIsCapturing)
     {

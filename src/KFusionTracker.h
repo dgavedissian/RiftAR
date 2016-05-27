@@ -5,12 +5,12 @@
 #include "simplex/dropSimplex.h"
 
 class Model;
-class F200Camera;
+class RealsenseCamera;
 
 class KFusionTracker
 {
 public:
-    KFusionTracker(F200Camera* camera);
+    KFusionTracker(RealsenseCamera* camera);
     ~KFusionTracker();
 
     void update(cv::Mat frame);
@@ -48,7 +48,7 @@ private:
     };
 
     // KFusion
-    F200Camera* mSource;
+    RealsenseCamera* mSource;
     KFusion* mKFusion;
     Image<uint16_t, HostDevice> mDepthImage;
     glm::vec3 mNewOrigin;

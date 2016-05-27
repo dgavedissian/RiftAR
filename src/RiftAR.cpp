@@ -24,7 +24,7 @@ void RiftAR::init()
 #ifdef ENABLE_ZED
     mZed = new ZEDCamera(sl::zed::HD720, 60);
 #endif
-    mRealsense = new F200Camera(640, 480, 60, F200Camera::ENABLE_COLOUR | F200Camera::ENABLE_DEPTH);
+    mRealsense = new RealsenseCamera(640, 480, 60, RealsenseCamera::ENABLE_COLOUR | RealsenseCamera::ENABLE_DEPTH);
 
     // Get the width/height of the output colour stream that the user sees
     cv::Size destinationSize;
@@ -32,8 +32,8 @@ void RiftAR::init()
     destinationSize.width = mZed->getWidth(ZEDCamera::LEFT);
     destinationSize.height = mZed->getHeight(ZEDCamera::LEFT);
 #else
-    destinationSize.width = mRealsense->getWidth(F200Camera::COLOUR);
-    destinationSize.height = mRealsense->getHeight(F200Camera::COLOUR);
+    destinationSize.width = mRealsense->getWidth(RealsenseCamera::COLOUR);
+    destinationSize.height = mRealsense->getHeight(RealsenseCamera::COLOUR);
 #endif
 
     // Initialise tracking system
@@ -60,11 +60,11 @@ void RiftAR::init()
     mRenderCtx.colourTextures[1] = mZed->getTexture(ZEDCamera::RIGHT);
     mRenderCtx.projection = mZed->getIntrinsics(ZEDCamera::LEFT).buildGLProjection(mRenderCtx.znear, mRenderCtx.zfar);
 #else
-    float fovH = mRealsense->getIntrinsics(F200Camera::COLOUR).fovH;
-    float fovV = mRealsense->getIntrinsics(F200Camera::COLOUR).fovV;
-    mRenderCtx.colourTextures[0] = mRealsense->getTexture(F200Camera::COLOUR);
-    mRenderCtx.colourTextures[1] = mRealsense->getTexture(F200Camera::COLOUR);
-    mRenderCtx.projection = mRealsense->getIntrinsics(F200Camera::COLOUR).buildGLProjection(mRenderCtx.znear, mRenderCtx.zfar);
+    float fovH = mRealsense->getIntrinsics(RealsenseCamera::COLOUR).fovH;
+    float fovV = mRealsense->getIntrinsics(RealsenseCamera::COLOUR).fovV;
+    mRenderCtx.colourTextures[0] = mRealsense->getTexture(RealsenseCamera::COLOUR);
+    mRenderCtx.colourTextures[1] = mRealsense->getTexture(RealsenseCamera::COLOUR);
+    mRenderCtx.projection = mRealsense->getIntrinsics(RealsenseCamera::COLOUR).buildGLProjection(mRenderCtx.znear, mRenderCtx.zfar);
 #endif
 
 #ifdef ENABLE_ZED
@@ -114,7 +114,7 @@ void RiftAR::render()
 
     // Read depth texture data
     static cv::Mat frame;
-    mRealsense->copyFrameIntoCVImage(F200Camera::DEPTH, &frame);
+    mRealsense->copyFrameIntoCVImage(RealsenseCamera::DEPTH, &frame);
 
     // Update the cameras pose
     mTracking->update(frame);
@@ -176,7 +176,7 @@ void RiftAR::setupDepthWarpStream(cv::Size destinationSize)
 #ifdef ENABLE_ZED
     mZedCalib = convertCVToMat3<double>(mZed->getIntrinsics(ZEDCamera::LEFT).cameraMatrix);
 #else
-    mZedCalib = convertCVToMat3<double>(mRealsense->getIntrinsics(F200Camera::COLOUR).cameraMatrix);
+    mZedCalib = convertCVToMat3<double>(mRealsense->getIntrinsics(RealsenseCamera::COLOUR).cameraMatrix);
 #endif
 
     // Read extrinsics parameters that map the ZED to the realsense colour camera, and invert
@@ -194,7 +194,7 @@ void RiftAR::setupDepthWarpStream(cv::Size destinationSize)
 #endif
 
     // Extrinsics to map from depth to colour in the F200
-    glm::mat4 depthToColour = mRealsense->getExtrinsics(F200Camera::DEPTH, F200Camera::COLOUR);
+    glm::mat4 depthToColour = mRealsense->getExtrinsics(RealsenseCamera::DEPTH, RealsenseCamera::COLOUR);
 
     // Combined extrinsics mapping realsense depth to ZED left
     mRealsenseToZedLeft = realsenseColourToZedLeft * depthToColour;

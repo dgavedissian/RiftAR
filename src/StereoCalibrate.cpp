@@ -1,5 +1,5 @@
 #include "lib/Common.h"
-#include "lib/F200Camera.h"
+#include "lib/RealsenseCamera.h"
 #include "lib/ZEDCamera.h"
 #include "lib/Rectangle2D.h"
 #include "lib/Shader.h"
@@ -14,7 +14,7 @@ public:
     void init() override
     {
         mZed = new ZEDCamera(sl::zed::HD720, 60);
-        mRealsense = new F200Camera(640, 480, 60, F200Camera::ENABLE_COLOUR);
+        mRealsense = new RealsenseCamera(640, 480, 60, RealsenseCamera::ENABLE_COLOUR);
 
         // Create OpenGL images to visualise the calibration
         glGenTextures(2, mTexture);
@@ -26,7 +26,7 @@ public:
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glBindTexture(GL_TEXTURE_2D, mTexture[1]);
         GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
-            mRealsense->getWidth(F200Camera::COLOUR), mRealsense->getHeight(F200Camera::COLOUR),
+            mRealsense->getWidth(RealsenseCamera::COLOUR), mRealsense->getHeight(RealsenseCamera::COLOUR),
             0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -44,7 +44,7 @@ public:
         mZed->capture();
         mZed->copyFrameIntoCVImage(ZEDCamera::LEFT, &mFrame[0]);
         mRealsense->capture();
-        mRealsense->copyFrameIntoCVImage(F200Camera::COLOUR, &mFrame[1]);
+        mRealsense->copyFrameIntoCVImage(RealsenseCamera::COLOUR, &mFrame[1]);
 
         // Display them
         static Rectangle2D leftQuad(glm::vec2(0.0f, 0.0f), glm::vec2(0.5f, 1.0f));
@@ -58,7 +58,7 @@ public:
         leftQuad.render();
         glBindTexture(GL_TEXTURE_2D, mTexture[1]);
         GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-            mRealsense->getWidth(F200Camera::COLOUR), mRealsense->getHeight(F200Camera::COLOUR),
+            mRealsense->getWidth(RealsenseCamera::COLOUR), mRealsense->getHeight(RealsenseCamera::COLOUR),
             GL_BGR, GL_UNSIGNED_BYTE, mFrame[1].ptr()));
         rightQuad.render();
     }
@@ -106,7 +106,7 @@ public:
                 }
 
                 CameraIntrinsics& zedIntr = mZed->getIntrinsics(ZEDCamera::LEFT);
-                CameraIntrinsics& rsIntr = mRealsense->getIntrinsics(F200Camera::COLOUR);
+                CameraIntrinsics& rsIntr = mRealsense->getIntrinsics(RealsenseCamera::COLOUR);
 
                 cv::Mat R, T, E, F;
                 double rms = stereoCalibrate(objectPoints, mLeftCorners, mRightCorners,
@@ -147,7 +147,7 @@ public:
 
 private:
     ZEDCamera* mZed;
-    F200Camera* mRealsense;
+    RealsenseCamera* mRealsense;
 
     GLuint mTexture[2];
     cv::Mat mFrame[2];

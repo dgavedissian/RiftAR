@@ -111,12 +111,12 @@ __global__ void flattenIntToShort(DeviceImage<uint32_t> src, DeviceImage<uint16_
     dest[index] = (uint16_t)src[index];
 }
 
-RealsenseDepthAdjuster::RealsenseDepthAdjuster(F200Camera* realsense, cv::Size destinationSize) :
+RealsenseDepthAdjuster::RealsenseDepthAdjuster(RealsenseCamera* realsense, cv::Size destinationSize) :
     mRealsense(realsense),
     mColourSize(destinationSize)
 {
     // Grab intrinsics for the realsense
-    CameraIntrinsics depthIntr = realsense->getIntrinsics(F200Camera::DEPTH);
+    CameraIntrinsics depthIntr = realsense->getIntrinsics(RealsenseCamera::DEPTH);
     mRealsenseCalibInverse = glm::inverse(convertCVToMat3<double>(depthIntr.cameraMatrix));
     mRealsenseDistortCoeffs = depthIntr.coeffs;
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lib/F200Camera.h"
+#include "lib/RealsenseCamera.h"
 
 template <class T>
 struct DeviceImage
@@ -17,7 +17,7 @@ struct DeviceImage
 class RealsenseDepthAdjuster
 {
 public:
-    RealsenseDepthAdjuster(F200Camera* realsense, cv::Size destinationSize);
+    RealsenseDepthAdjuster(RealsenseCamera* realsense, cv::Size destinationSize);
     ~RealsenseDepthAdjuster();
 
     void warpToPair(cv::Mat& frame, const glm::mat3& destCalib, const glm::mat4& leftExtrinsics, const glm::mat4& rightExtrinsics);
@@ -27,7 +27,7 @@ private:
     void allocCuda(cv::Size srcSize);
     void freeCuda();
 
-    F200Camera* mRealsense;
+    RealsenseCamera* mRealsense;
 
     glm::mat3 mRealsenseCalibInverse;
     std::vector<double> mRealsenseDistortCoeffs;

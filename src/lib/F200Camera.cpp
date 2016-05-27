@@ -11,12 +11,16 @@ F200Camera::F200Camera(uint width, uint height, uint frameRate, uint streams) :
 {
     initialiseDevice();
 
+    // Launch capture loop
+    mIsCapturing = true;
+    mCaptureThread = new std::thread(&F200Camera::captureLoop, this);
+
     // Set up OpenGL
     if (streams & ENABLE_COLOUR)
     {
         glGenTextures(1, &mStreamTextures[0]);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[0]);
-        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
@@ -36,91 +40,53 @@ F200Camera::F200Camera(uint width, uint height, uint frameRate, uint streams) :
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
-    if (streams & ENABLE_INFRARED2)
-    {
-        glGenTextures(1, &mStreamTextures[3]);
-        glBindTexture(GL_TEXTURE_2D, mStreamTextures[3]);
-        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
 }
 
 F200Camera::~F200Camera()
 {
+    mIsCapturing = false;
+    mCaptureThread->join();
     delete mContext;
+    delete mCaptureThread;
 }
 
 void F200Camera::capture()
 {
-    try
-    {
-        mDevice->wait_for_frames();
-    }
-    catch (rs::error&)
-    {
-        cout << "F200 was disconnected randomly due to tugging of the wire - attempting to reinitialise..." << endl;
-        delete mContext;
-        initialiseDevice();
-    }
+    // Do nothing
 }
 
 void F200Camera::updateTextures()
 {
-    // Grab data
-    // TODO: Use a pixel buffer object instead of glTexSubImage2D?
+    mFrameAccessMutex.lock();
     if (mEnabledStreams & ENABLE_COLOUR)
     {
         CameraIntrinsics& intr = getIntrinsics(COLOUR);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[COLOUR]);
-        GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RGBA, GL_UNSIGNED_BYTE, getRawData(COLOUR)));
+        GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_BGR, GL_UNSIGNED_BYTE, mStreamData[COLOUR].ptr()));
     }
     if (mEnabledStreams & ENABLE_DEPTH)
     {
         CameraIntrinsics& intr = getIntrinsics(DEPTH);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[DEPTH]);
-        GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RED, GL_UNSIGNED_SHORT, getRawData(DEPTH)));
+        GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RED, GL_UNSIGNED_SHORT, mStreamData[DEPTH].ptr()));
     }
     if (mEnabledStreams & ENABLE_INFRARED)
     {
         CameraIntrinsics& intr = getIntrinsics(INFRARED);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[INFRARED]);
-        GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RED, GL_UNSIGNED_BYTE, getRawData(INFRARED)));
+        GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RED, GL_UNSIGNED_BYTE, mStreamData[INFRARED].ptr()));
     }
-    if (mEnabledStreams & ENABLE_INFRARED2)
-    {
-        CameraIntrinsics& intr = getIntrinsics(INFRARED2);
-        glBindTexture(GL_TEXTURE_2D, mStreamTextures[INFRARED2]);
-        GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RED, GL_UNSIGNED_BYTE, getRawData(INFRARED2)));
-    }
-}
-
-void F200Camera::copyFrameIntoCudaImage(uint camera, cudaGraphicsResource* resource)
-{
-    THROW_ERROR("Unimplemented");
+    mFrameAccessMutex.unlock();
 }
 
 void F200Camera::copyFrameIntoCVImage(uint camera, cv::Mat* mat)
 {
-    // Wrap the data in a cv::Mat then copy it. This const_cast is sadly necessary as the
-    // getRawData interface isn't supposed to allow writes to this location of memory.
-    // As we immediately copy the data, it shouldn't matter much here.
-    CameraIntrinsics& intr = getIntrinsics(camera);
-    if (camera == COLOUR)
-    {
-        cv::Mat wrapped(intr.height, intr.width, CV_8UC4, const_cast<void*>(getRawData(camera)));
-        cvtColor(wrapped, *mat, cv::COLOR_RGBA2BGR);
-    }
-    else if (camera == DEPTH)
-    {
-        cv::Mat wrapped(intr.height, intr.width, CV_16UC1, const_cast<void*>(getRawData(camera)));
-        wrapped.copyTo(*mat);
-    }
-    else
-    {
-        cv::Mat wrapped(intr.height, intr.width, CV_8UC1, const_cast<void*>(getRawData(camera)));
-        wrapped.copyTo(*mat);
-    }
+    if (camera >= STREAM_COUNT)
+        THROW_ERROR("Invalid stream");
+
+    mFrameAccessMutex.lock();
+    *mat = mStreamData[camera];
+    mFrameAccessMutex.unlock();
 }
 
 const void* F200Camera::getRawData(uint camera)
@@ -130,6 +96,8 @@ const void* F200Camera::getRawData(uint camera)
 
 CameraIntrinsics F200Camera::getIntrinsics(uint camera) const
 {
+    // get_stream_intrinsics is a const method which means that it is thread-safe. As there are no functions
+    // which modify the intrinsics, there are no race conditions here.
     return buildIntrinsics(mDevice->get_stream_intrinsics(mapCameraToStream(camera)));
 }
 
@@ -139,6 +107,8 @@ glm::mat4 F200Camera::getExtrinsics(uint camera1, uint camera2) const
     if (camera1 == camera2)
         return glm::mat4();
 
+    // get_extrinsics is a const method which means that it is thread-safe. As there are no functions
+    // which modify the extrinsics, there are no race conditions here.
     glm::mat4 out;
     rs::extrinsics& extr = mDevice->get_extrinsics(mapCameraToStream(camera1), mapCameraToStream(camera2));
     for (int row = 0; row < 3; row++)
@@ -167,13 +137,11 @@ void F200Camera::initialiseDevice()
 
     // Set up streams
     if (mEnabledStreams & ENABLE_COLOUR)
-        mDevice->enable_stream(rs::stream::color, mWidth, mHeight, rs::format::rgba8, mFrameRate);
+        mDevice->enable_stream(rs::stream::color, mWidth, mHeight, rs::format::bgr8, mFrameRate);
     if (mEnabledStreams & ENABLE_DEPTH)
         mDevice->enable_stream(rs::stream::depth, mWidth, mHeight, rs::format::z16, mFrameRate);
     if (mEnabledStreams & ENABLE_INFRARED)
         mDevice->enable_stream(rs::stream::infrared, mWidth, mHeight, rs::format::y8, mFrameRate);
-    if (mEnabledStreams & ENABLE_INFRARED2)
-        mDevice->enable_stream(rs::stream::infrared2, mWidth, mHeight, rs::format::y8, mFrameRate);
 
     // Start the device
     mDevice->start();
@@ -186,7 +154,6 @@ rs::stream F200Camera::mapCameraToStream(uint camera) const
     case COLOUR: return rs::stream::color;
     case DEPTH: return rs::stream::depth;
     case INFRARED: return rs::stream::infrared;
-    case INFRARED2: return rs::stream::infrared2;
     default: THROW_ERROR("Unknown camera ID");
     }
 }
@@ -210,4 +177,49 @@ CameraIntrinsics F200Camera::buildIntrinsics(rs::intrinsics& intr) const
     out.height = intr.height;
 
     return out;
+}
+
+void F200Camera::captureLoop()
+{
+    while (mIsCapturing)
+    {
+        // Capture frames
+        try
+        {
+            mDevice->wait_for_frames();
+        }
+        catch (rs::error&)
+        {
+            cout << "F200 was disconnected randomly due to tugging of the wire - attempting to reinitialise..." << endl;
+            //delete mContext;
+            //initialiseDevice();
+        }
+
+        mFrameAccessMutex.lock();
+
+        // Wrap the data in a cv::Mat then copy it. This const_cast is sadly necessary as the
+        // getRawData interface isn't supposed to allow writes to this location of memory.
+        // As we immediately copy the data, it shouldn't matter much here.
+        if (mEnabledStreams & ENABLE_COLOUR)
+        {
+            CameraIntrinsics& intr = getIntrinsics(COLOUR);
+            cv::Mat wrapped(intr.height, intr.width, CV_8UC3, const_cast<void*>(getRawData(COLOUR)));
+            wrapped.copyTo(mStreamData[COLOUR]);
+        }
+        if (mEnabledStreams & ENABLE_DEPTH)
+        {
+            CameraIntrinsics& intr = getIntrinsics(DEPTH);
+            cv::Mat wrapped(intr.height, intr.width, CV_16UC1, const_cast<void*>(getRawData(DEPTH)));
+            wrapped.copyTo(mStreamData[DEPTH]);
+        }
+        if (mEnabledStreams & ENABLE_INFRARED)
+        {
+            CameraIntrinsics& intr = getIntrinsics(INFRARED);
+            cv::Mat wrapped(intr.height, intr.width, CV_8UC1, const_cast<void*>(getRawData(INFRARED)));
+            wrapped.copyTo(mStreamData[INFRARED]);
+        }
+
+        mFrameAccessMutex.unlock();
+
+    }
 }

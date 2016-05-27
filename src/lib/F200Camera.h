@@ -1,5 +1,7 @@
 #pragma once
 
+#include <thread>
+#include <mutex>
 #include <librealsense/rs.hpp>
 
 #include "CameraSource.h"
@@ -12,7 +14,6 @@ public:
         ENABLE_COLOUR = 1,
         ENABLE_DEPTH = 2,
         ENABLE_INFRARED = 4,
-        ENABLE_INFRARED2 = 8
     };
 
     enum
@@ -20,7 +21,6 @@ public:
         COLOUR,
         DEPTH,
         INFRARED,
-        INFRARED2,
         STREAM_COUNT
     };
 
@@ -29,7 +29,6 @@ public:
 
     void capture() override;
     void updateTextures() override;
-    void copyFrameIntoCudaImage(uint camera, cudaGraphicsResource* resource) override;
     void copyFrameIntoCVImage(uint camera, cv::Mat* mat) override;
     const void* getRawData(uint camera) override;
 
@@ -40,6 +39,15 @@ public:
     float getDepthScale() { return mDevice->get_depth_scale(); }
 
 private:
+    rs::stream mapCameraToStream(uint camera) const;
+    CameraIntrinsics buildIntrinsics(rs::intrinsics& intr) const;
+
+    void captureLoop();
+
+    bool mIsCapturing;
+    std::thread* mCaptureThread;
+    std::mutex mFrameAccessMutex;
+
     uint mWidth, mHeight, mFrameRate;
     int mEnabledStreams;
     rs::context* mContext;
@@ -47,8 +55,6 @@ private:
 
     void initialiseDevice();
 
-    GLuint mStreamTextures[STREAM_COUNT]; // one for each stream
-
-    rs::stream mapCameraToStream(uint camera) const;
-    CameraIntrinsics buildIntrinsics(rs::intrinsics& intr) const;
+    cv::Mat mStreamData[STREAM_COUNT];
+    GLuint mStreamTextures[STREAM_COUNT];
 };

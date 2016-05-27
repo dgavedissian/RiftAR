@@ -31,7 +31,6 @@ public:
     virtual void updateTextures() = 0;
 
     // Helper functions for other algorithms
-    virtual void copyFrameIntoCudaImage(uint camera, cudaGraphicsResource* resource) = 0;
     virtual void copyFrameIntoCVImage(uint camera, cv::Mat* mat) = 0;
     virtual const void* getRawData(uint camera) = 0;
 

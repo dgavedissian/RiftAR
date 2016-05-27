@@ -18,7 +18,7 @@ public:
 
     void capture() override;
     void updateTextures() override;
-    void copyFrameIntoCudaImage(uint camera, cudaGraphicsResource* resource) override;
+    void copyFrameIntoCudaImage(uint camera, cudaGraphicsResource* resource);
     void copyFrameIntoCVImage(uint camera, cv::Mat* mat) override;
     const void* getRawData(uint camera) override;
 

@@ -56,8 +56,7 @@ set(SRC_FILES
     # Cameras -------------------------
     src/lib/CameraSource.cpp
     src/lib/F200Camera.cpp
-    src/lib/ZEDCamera.cpp
-    src/lib/ZEDCVCamera.cpp)
+    src/lib/ZEDCamera.cpp)
 set(HDR_FILES
     src/lib/App.h
     src/lib/Common.h
@@ -69,8 +68,7 @@ set(HDR_FILES
     # Cameras -------------------------
     src/lib/CameraSource.h
     src/lib/F200Camera.h
-    src/lib/ZEDCamera.h
-    src/lib/ZEDCVCamera.h)
+    src/lib/ZEDCamera.h)
 link_directories(${ZED_LIBRARY_DIR})
 add_library(Common STATIC ${SRC_FILES} ${HDR_FILES})
 target_link_libraries(Common ${LIBS})

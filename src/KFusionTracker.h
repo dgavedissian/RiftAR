@@ -2,7 +2,7 @@
 
 #include <kfusion/kfusion.h>
 
-#include "simplex/dropSimplex.h"
+#include "simplex/DropSimplex.h"
 
 class Model;
 class RealsenseCamera;

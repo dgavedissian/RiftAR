@@ -1,7 +1,7 @@
-#include "lib/Common.h"
-#include "lib/Model.h"
-
+#include "Common.h"
 #include "RenderContext.h"
+
+#include "lib/Model.h"
 
 void RenderContext::renderScene(int eye)
 {

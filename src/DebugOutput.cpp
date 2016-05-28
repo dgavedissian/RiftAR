@@ -1,6 +1,7 @@
-#include "lib/Common.h"
-#include "lib/Model.h"
+#include "Common.h"
 #include "DebugOutput.h"
+
+#include "lib/Model.h"
 
 DebugOutput::DebugOutput(RenderContext& ctx, bool invertColour) :
     mShowColour(true)

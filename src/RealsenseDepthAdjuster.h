@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lib/RealsenseCamera.h"
+#include "camera/RealsenseCamera.h"
 
 template <class T>
 struct DeviceImage

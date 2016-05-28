@@ -1,9 +1,9 @@
 #pragma once
 
-#include "OutputContext.h"
-
 #include "lib/Rectangle2D.h"
 #include "lib/Shader.h"
+
+#include "OutputContext.h"
 
 class DebugOutput : public OutputContext
 {

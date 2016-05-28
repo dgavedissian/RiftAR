@@ -1,4 +1,4 @@
-#include "lib/Common.h"
+#include "Common.h"
 #include "RealsenseDepthAdjuster.h"
 
 struct DistortCoeffs

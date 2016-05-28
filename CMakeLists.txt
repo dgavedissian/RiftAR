@@ -43,35 +43,38 @@ set(LIBS ${LIBS} librealsense)
 
 # Add include directories
 include_directories(${INCLUDE_DIRS})
-
-# Common library
-set(SRC_FILES
+# Framework
+set(FRAMEWORK_SRC
     3rdparty/gl3w.c
     src/lib/Main.cpp
     src/lib/Timer.cpp
-    # GL helper objects ---------------
     src/lib/Rectangle2D.cpp
     src/lib/Shader.cpp
-	src/lib/Model.cpp
-    # Cameras -------------------------
-    src/lib/CameraSource.cpp
-    src/lib/RealsenseCamera.cpp
-    src/lib/ZEDCamera.cpp)
-set(HDR_FILES
+	src/lib/Model.cpp)
+set(FRAMEWORK_HDR
     src/lib/App.h
     src/lib/Common.h
+    src/lib/Utils.h
     src/lib/Timer.h
-    # GL helper objects ---------------
     src/lib/Rectangle2D.h
     src/lib/Shader.h
-	src/lib/Model.h
-    # Cameras -------------------------
-    src/lib/CameraSource.h
-    src/lib/RealsenseCamera.h
-    src/lib/ZEDCamera.h)
+	src/lib/Model.h)
+add_library(Framework STATIC ${FRAMEWORK_SRC} ${FRAMEWORK_HDR})
+target_link_libraries(Framework ${LIBS})
+
+# Camera
+set(CAMERA_SRC
+    src/camera/CameraSource.cpp
+    src/camera/RealsenseCamera.cpp
+    src/camera/ZEDCamera.cpp)
+set(CAMERA_HDR
+    src/camera/Common.h
+    src/camera/CameraSource.h
+    src/camera/RealsenseCamera.h
+    src/camera/ZEDCamera.h)
 link_directories(${ZED_LIBRARY_DIR})
-add_library(Common STATIC ${SRC_FILES} ${HDR_FILES})
-target_link_libraries(Common ${LIBS})
+add_library(Camera STATIC ${CAMERA_SRC} ${CAMERA_HDR})
+target_link_libraries(Camera ${LIBS})
 
 # OVR
 set(OVR_SDK_ROOT ${THIRD_PARTY_DIR}/OculusSDK)
@@ -100,8 +103,8 @@ set(RIFTAR_SRC
     src/RiftOutput.cpp)
 include_directories(${OVR_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/3rdparty/kfusion)
 cuda_add_executable(RiftAR ${RIFTAR_SRC} ${RIFTAR_HDR})
-target_link_libraries(RiftAR Common ${OVR_LIBRARY} kfusion)
+target_link_libraries(RiftAR Framework Camera ${OVR_LIBRARY} kfusion)
 
-# StereoCalibrate
+# Stereo calibrate
 add_executable(StereoCalibrate src/StereoCalibrate.cpp)
-target_link_libraries(StereoCalibrate Common)
+target_link_libraries(StereoCalibrate Framework Camera)

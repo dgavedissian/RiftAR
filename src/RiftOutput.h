@@ -1,13 +1,13 @@
 #pragma once
 
+#include <OVR_CAPI.h>
+#include <OVR_CAPI_GL.h>
+#include <Extras/OVR_Math.h>
+
 #include "lib/Rectangle2D.h"
 #include "lib/Shader.h"
 
 #include "OutputContext.h"
-
-#include <OVR_CAPI.h>
-#include <OVR_CAPI_GL.h>
-#include <Extras/OVR_Math.h>
 
 class RiftOutput : public OutputContext
 {

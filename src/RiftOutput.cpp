@@ -1,4 +1,4 @@
-#include "lib/Common.h"
+#include "Common.h"
 #include "RiftOutput.h"
 
 RiftOutput::RiftOutput(cv::Size backbufferSize, float cameraFovH, float cameraFovV, bool invertColour) :
@@ -102,19 +102,6 @@ void RiftOutput::renderScene(RenderContext& ctx)
     ovr_GetTextureSwapChainCurrentIndex(mSession, mTextureChain, &curIndex);
     ovr_GetTextureSwapChainBufferGL(mSession, mTextureChain, curIndex, &curTexId);
 
-    // Call ovr_GetRenderDesc each frame to get the ovrEyeRenderDesc, as the returned values (e.g. HmdToEyeOffset) may change at runtime.
-    ovrEyeRenderDesc eyeRenderDesc[2];
-    eyeRenderDesc[0] = ovr_GetRenderDesc(mSession, ovrEye_Left, mHmdDesc.DefaultEyeFov[0]);
-    eyeRenderDesc[1] = ovr_GetRenderDesc(mSession, ovrEye_Right, mHmdDesc.DefaultEyeFov[1]);
-    ovrVector3f hmdToEyeOffset[2];
-    hmdToEyeOffset[0] = eyeRenderDesc[0].HmdToEyeOffset;
-    hmdToEyeOffset[1] = eyeRenderDesc[1].HmdToEyeOffset;
-
-    // Get eye poses, feeding in correct IPD offset
-    ovrPosef eyeRenderPose[2];
-    double sensorSampleTime;
-    ovr_GetEyePoses(mSession, mFrameIndex, ovrTrue, hmdToEyeOffset, eyeRenderPose, &sensorSampleTime);
-
     // Bind the frame buffer
     glBindFramebuffer(GL_FRAMEBUFFER, mFramebufferId);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, curTexId, 0);
@@ -136,11 +123,28 @@ void RiftOutput::renderScene(RenderContext& ctx)
         mQuad->render();
 
         // Render the scene
-        //ctx.renderScene(i);
+        ctx.renderScene(i);
     }
 
     // Commit changes to the textures so they get picked up in the next frame
     ovr_CommitTextureSwapChain(mSession, mTextureChain);
+
+    // As there is no way for the Oculus SDK to disable Asynchronous Timewarp that the SDK provides, fool it by giving it a
+    // negligible offset by capturing the eye pose before display. Usually we would capture the eye pose at the very start
+    // of the frame to take into account when the frame is captured. However, this doesn't give us enough control.
+
+    // Call ovr_GetRenderDesc each frame to get the ovrEyeRenderDesc, as the returned values (e.g. HmdToEyeOffset) may change at runtime.
+    ovrEyeRenderDesc eyeRenderDesc[2];
+    eyeRenderDesc[0] = ovr_GetRenderDesc(mSession, ovrEye_Left, mHmdDesc.DefaultEyeFov[0]);
+    eyeRenderDesc[1] = ovr_GetRenderDesc(mSession, ovrEye_Right, mHmdDesc.DefaultEyeFov[1]);
+    ovrVector3f hmdToEyeOffset[2];
+    hmdToEyeOffset[0] = eyeRenderDesc[0].HmdToEyeOffset;
+    hmdToEyeOffset[1] = eyeRenderDesc[1].HmdToEyeOffset;
+
+    // Get eye poses, feeding in correct IPD offset
+    ovrPosef eyeRenderPose[2];
+    double sensorSampleTime;
+    ovr_GetEyePoses(mSession, mFrameIndex, ovrTrue, hmdToEyeOffset, eyeRenderPose, &sensorSampleTime);
 
     // Submit the frame
     ovrLayerEyeFov ld;

@@ -30,11 +30,13 @@ using std::endl;
 #include <glm/gtx/string_cast.hpp>
 #endif
 
+// CUDA
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <cuda_gl_interop.h>
+
 // OpenCV
 #include <opencv2/opencv.hpp>
 
-// Utils
-#include "Utils.h"
-
-// App
-#include "App.h"
+// Utils taken from the framework
+#include "../lib/Utils.h"

@@ -1,6 +1,6 @@
-#include "lib/Common.h"
+#include "Common.h"
 #include "lib/Model.h"
-#include "lib/RealsenseCamera.h"
+#include "camera/RealsenseCamera.h"
 #include "KFusionTracker.h"
 
 #include <TooN/se3.h>

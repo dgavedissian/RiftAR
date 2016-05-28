@@ -1,11 +1,11 @@
 #pragma once
 
-#include "lib/RealsenseCamera.h"
-#include "lib/ZEDCamera.h"
-
 #include "lib/Rectangle2D.h"
 #include "lib/Model.h"
 #include "lib/Shader.h"
+
+#include "camera/RealsenseCamera.h"
+#include "camera/ZEDCamera.h"
 
 #include "OutputContext.h"
 #include "RealsenseDepthAdjuster.h"

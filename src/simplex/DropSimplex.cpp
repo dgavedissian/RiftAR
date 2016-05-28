@@ -1,4 +1,4 @@
-﻿#include "dropSimplex.h"
+﻿#include "DropSimplex.h"
 
 namespace drop
 {

@@ -1,9 +1,5 @@
 #pragma once
 
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <cuda_gl_interop.h>
-
 struct CameraIntrinsics
 {
     int width, height;

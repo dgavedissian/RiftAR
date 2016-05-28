@@ -156,7 +156,7 @@ bool RealsenseCamera::isStreamEnabled(uint camera) const
 {
     if (camera >= STREAM_COUNT)
         THROW_ERROR("Invalid stream");
-    return mEnabledStreams & (1 << camera) != 0;
+    return (mEnabledStreams & (1 << camera)) != 0;
 }
 
 void RealsenseCamera::initialiseDevice()

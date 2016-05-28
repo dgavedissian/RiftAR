@@ -15,6 +15,9 @@ public:
     RiftOutput(cv::Size backbufferSize, float cameraFovH, float cameraFovV, bool invertColour);
     ~RiftOutput();
 
+    void newFrame(int& frameIndex, ovrPosef poses[2]);
+    void setFramePose(int frameIndex, ovrPosef poses[2]);
+
     void renderScene(RenderContext& ctx) override;
 
 private:
@@ -27,8 +30,10 @@ private:
     GLuint mDepthBufferId;
     ovrMirrorTexture mMirrorTexture;
     GLuint mMirrorTextureId;
+    ovrVector3f mHmdToEyeOffset[2];
 
     int mFrameIndex;
+    ovrPosef mEyePose[2];
 
     Rectangle2D* mQuad;
     Rectangle2D* mFullscreenQuad;

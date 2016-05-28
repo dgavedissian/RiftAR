@@ -6,7 +6,7 @@
 
 #include "KFusionTracker.h"
 
-//#define RIFT_DISPLAY
+#define RIFT_DISPLAY
 //#define ENABLE_ZED
 
 DEFINE_MAIN(RiftAR);
@@ -25,15 +25,6 @@ void RiftAR::init()
     mZed = new ZEDCamera(sl::zed::HD720, 60);
 #endif
     mRealsense = new RealsenseCamera(640, 480, 60, RealsenseCamera::ENABLE_COLOUR | RealsenseCamera::ENABLE_DEPTH);
-
-    // Start the capture loop thread
-    mIsCapturing = true;
-    mInitialisedStream = false;
-    mCaptureThread = new std::thread(&RiftAR::captureLoop, this);
-
-    // Wait until the capture loop has at least one frame
-    std::unique_lock<std::mutex> lk(mCondVarMutex);
-    mCondVar.wait(lk, [this]{ return mInitialisedStream; });
 
     // Get the width/height of the output colour stream that the user sees
     cv::Size destinationSize;
@@ -90,6 +81,13 @@ void RiftAR::init()
     // Enable culling and depth testing
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
+
+    // Start the capture loop thread and wait until the capture loop has captured at least one frame
+    mIsCapturing = true;
+    mInitialisedStream = false;
+    mCaptureThread = new std::thread(&RiftAR::captureLoop, this);
+    std::unique_lock<std::mutex> lk(mCondVarMutex);
+    mCondVar.wait(lk, [this]{ return mInitialisedStream; });
 }
 
 RiftAR::~RiftAR()
@@ -116,6 +114,13 @@ RiftAR::~RiftAR()
 void RiftAR::render()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    // Try and grab the latest pose information
+#ifdef RIFT_DISPLAY
+    mPoseLock.lock();
+    static_cast<RiftOutput*>(mOutputCtx)->setFramePose(mFrameIndex, mEyePose);
+    mPoseLock.unlock();
+#endif
 
     // Get current depth frame
     cv::Mat depthFrame;
@@ -223,8 +228,13 @@ void RiftAR::captureLoop()
     while (mIsCapturing)
     {
         // Get current pose
+#ifdef RIFT_DISPLAY
+        mPoseLock.lock();
+        static_cast<RiftOutput*>(mOutputCtx)->newFrame(mFrameIndex, mEyePose);
+        mPoseLock.unlock();
+#endif
 
-        // Capture from realsense
+        // Capture from the cameras
 #ifdef ENABLE_ZED
         mZed->capture();
 #endif

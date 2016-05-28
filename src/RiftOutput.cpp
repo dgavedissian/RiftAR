@@ -33,6 +33,13 @@ RiftOutput::RiftOutput(cv::Size backbufferSize, float cameraFovH, float cameraFo
     descTextureSwap.SampleCount = 1;
     descTextureSwap.StaticImage = ovrFalse;
 
+    // Get HMD to eye offsets
+    ovrEyeRenderDesc eyeRenderDesc[2];
+    eyeRenderDesc[0] = ovr_GetRenderDesc(mSession, ovrEye_Left, mHmdDesc.DefaultEyeFov[0]);
+    eyeRenderDesc[1] = ovr_GetRenderDesc(mSession, ovrEye_Right, mHmdDesc.DefaultEyeFov[1]);
+    mHmdToEyeOffset[0] = eyeRenderDesc[0].HmdToEyeOffset;
+    mHmdToEyeOffset[1] = eyeRenderDesc[1].HmdToEyeOffset;
+
     // Create the OpenGL texture swap chain, and enable linear filtering on each texture in the swap chain
     result = ovr_CreateTextureSwapChainGL(mSession, &descTextureSwap, &mTextureChain);
     int length = 0;
@@ -94,8 +101,27 @@ RiftOutput::~RiftOutput()
     ovr_Shutdown();
 }
 
+void RiftOutput::newFrame(int& frameIndex, ovrPosef poses[2])
+{
+    // A frame has been completed
+    frameIndex++;
+
+    // Get eye poses, feeding in correct IPD offset
+    double frameTiming = ovr_GetPredictedDisplayTime(mSession, mFrameIndex);
+    ovrTrackingState state = ovr_GetTrackingState(mSession, frameTiming, ovrTrue);
+    ovr_CalcEyePoses(state.HeadPose.ThePose, mHmdToEyeOffset, poses);
+}
+
+void RiftOutput::setFramePose(int frameIndex, ovrPosef poses[2])
+{
+    mFrameIndex = frameIndex;
+    mEyePose[0] = poses[0];
+    mEyePose[1] = poses[1];
+}
+
 void RiftOutput::renderScene(RenderContext& ctx)
 {
+
     // Get texture swap index where we must draw our frame
     GLuint curTexId;
     int curIndex;
@@ -129,41 +155,21 @@ void RiftOutput::renderScene(RenderContext& ctx)
     // Commit changes to the textures so they get picked up in the next frame
     ovr_CommitTextureSwapChain(mSession, mTextureChain);
 
-    // As there is no way for the Oculus SDK to disable Asynchronous Timewarp that the SDK provides, fool it by giving it a
-    // negligible offset by capturing the eye pose before display. Usually we would capture the eye pose at the very start
-    // of the frame to take into account when the frame is captured. However, this doesn't give us enough control.
-
-    // Call ovr_GetRenderDesc each frame to get the ovrEyeRenderDesc, as the returned values (e.g. HmdToEyeOffset) may change at runtime.
-    ovrEyeRenderDesc eyeRenderDesc[2];
-    eyeRenderDesc[0] = ovr_GetRenderDesc(mSession, ovrEye_Left, mHmdDesc.DefaultEyeFov[0]);
-    eyeRenderDesc[1] = ovr_GetRenderDesc(mSession, ovrEye_Right, mHmdDesc.DefaultEyeFov[1]);
-    ovrVector3f hmdToEyeOffset[2];
-    hmdToEyeOffset[0] = eyeRenderDesc[0].HmdToEyeOffset;
-    hmdToEyeOffset[1] = eyeRenderDesc[1].HmdToEyeOffset;
-
-    // Get eye poses, feeding in correct IPD offset
-    ovrPosef eyeRenderPose[2];
-    double sensorSampleTime;
-    ovr_GetEyePoses(mSession, mFrameIndex, ovrTrue, hmdToEyeOffset, eyeRenderPose, &sensorSampleTime);
-
     // Submit the frame
-    ovrLayerEyeFov ld;
-    ld.Header.Type = ovrLayerType_EyeFov;
-    ld.Header.Flags = ovrLayerFlag_TextureOriginAtBottomLeft;
+    ovrLayerEyeFov layer;
+    layer.Header.Type = ovrLayerType_EyeFov;
+    layer.Header.Flags = ovrLayerFlag_TextureOriginAtBottomLeft;
     for (int i = 0; i < 2; ++i)
     {
-        ld.ColorTexture[i] = mTextureChain;
-        ld.Viewport[i] = OVR::Recti(i == ovrEye_Left ? 0 : mBufferSize.w / 2, 0, mBufferSize.w / 2, mBufferSize.h);
-        ld.Fov[i] = mHmdDesc.DefaultEyeFov[i];
-        ld.RenderPose[i] = eyeRenderPose[i];
+        layer.ColorTexture[i] = mTextureChain;
+        layer.Viewport[i] = OVR::Recti(i == ovrEye_Left ? 0 : mBufferSize.w / 2, 0, mBufferSize.w / 2, mBufferSize.h);
+        layer.Fov[i] = mHmdDesc.DefaultEyeFov[i];
+        layer.RenderPose[i] = mEyePose[i];
     }
-    ovrLayerHeader* layers = &ld.Header;
+    ovrLayerHeader* layers = &layer.Header;
     ovrResult result = ovr_SubmitFrame(mSession, mFrameIndex, nullptr, &layers, 1);
     if (OVR_FAILURE(result))
         THROW_ERROR("Failed to submit frame!");
-
-    // A frame has been completed
-    mFrameIndex++;
 
     // Draw the mirror texture
     glViewport(0, 0, ctx.backbufferSize.width, ctx.backbufferSize.height);

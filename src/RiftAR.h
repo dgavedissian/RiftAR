@@ -4,6 +4,8 @@
 #include <mutex>
 #include <condition_variable>
 
+#include <OVR_CAPI.h>
+
 #include "lib/Rectangle2D.h"
 #include "lib/Model.h"
 #include "lib/Shader.h"
@@ -44,6 +46,11 @@ private:
     // Rendering
     RenderContext mRenderCtx;
     OutputContext* mOutputCtx;
+
+    // Pose state
+    std::mutex mPoseLock;
+    int mFrameIndex;
+    ovrPosef mEyePose[2];
 
     // Capture thread
     bool mIsCapturing;

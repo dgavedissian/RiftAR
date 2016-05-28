@@ -11,18 +11,24 @@ RealsenseCamera::RealsenseCamera(uint width, uint height, uint frameRate, uint s
 {
     initialiseDevice();
 
-    // Initialise stream data
-    mStreamData[COLOUR] = cv::Mat::zeros(width, height, CV_8UC3);
-    mStreamData[DEPTH] = cv::Mat::ones(width, height, CV_16UC1);
-    mStreamData[INFRARED] = cv::Mat::zeros(width, height, CV_8UC1);
-
-    // Launch capture loop
-    mIsCapturing = true;
-    mCaptureThread = new std::thread(&RealsenseCamera::captureLoop, this);
+    // Initialise intrinsics and extrinsics
+    for (int i = 0; i < STREAM_COUNT; i++)
+    {
+        if (isStreamEnabled(i))
+        {
+            mIntrinsics[i] = buildIntrinsics(i);
+            for (int j = 0; j < STREAM_COUNT; j++)
+            {
+                if (isStreamEnabled(j))
+                    mExtrinsics[i][j] = buildExtrinsics(i, j);
+            }
+        }
+    }
 
     // Set up OpenGL
     if (streams & ENABLE_COLOUR)
     {
+        // Initialise texture
         glGenTextures(1, &mStreamTextures[0]);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[0]);
         GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
@@ -49,20 +55,50 @@ RealsenseCamera::RealsenseCamera(uint width, uint height, uint frameRate, uint s
 
 RealsenseCamera::~RealsenseCamera()
 {
-    mIsCapturing = false;
-    mCaptureThread->join();
     delete mContext;
-    delete mCaptureThread;
 }
 
 void RealsenseCamera::capture()
 {
-    // Do nothing
+    try
+    {
+        mDevice->wait_for_frames();
+    }
+    catch (rs::error&)
+    {
+        cout << "F200 was disconnected randomly due to tugging of the wire - attempting to reinitialise..." << endl;
+        delete mContext;
+        initialiseDevice();
+    }
+}
+
+void RealsenseCamera::copyData()
+{
+    // Wrap the data in a cv::Mat then copy it. This const_cast is sadly necessary as the
+    // getRawData interface isn't supposed to allow writes to this location of memory.
+    // As we immediately copy the data, it shouldn't matter much here.
+    if (mEnabledStreams & ENABLE_COLOUR)
+    {
+        CameraIntrinsics& intr = getIntrinsics(COLOUR);
+        cv::Mat wrapped(intr.height, intr.width, CV_8UC3, const_cast<void*>(getRawData(COLOUR)));
+        wrapped.copyTo(mStreamData[COLOUR]);
+    }
+    if (mEnabledStreams & ENABLE_DEPTH)
+    {
+        CameraIntrinsics& intr = getIntrinsics(DEPTH);
+        cv::Mat wrapped(intr.height, intr.width, CV_16UC1, const_cast<void*>(getRawData(DEPTH)));
+        wrapped.copyTo(mStreamData[DEPTH]);
+    }
+    if (mEnabledStreams & ENABLE_INFRARED)
+    {
+        CameraIntrinsics& intr = getIntrinsics(INFRARED);
+        cv::Mat wrapped(intr.height, intr.width, CV_8UC1, const_cast<void*>(getRawData(INFRARED)));
+        wrapped.copyTo(mStreamData[INFRARED]);
+    }
 }
 
 void RealsenseCamera::updateTextures()
 {
-    mFrameAccessMutex.lock();
     if (mEnabledStreams & ENABLE_COLOUR)
     {
         CameraIntrinsics& intr = getIntrinsics(COLOUR);
@@ -81,17 +117,13 @@ void RealsenseCamera::updateTextures()
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[INFRARED]);
         GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, intr.width, intr.height, GL_RED, GL_UNSIGNED_BYTE, mStreamData[INFRARED].ptr()));
     }
-    mFrameAccessMutex.unlock();
 }
 
 void RealsenseCamera::copyFrameIntoCVImage(uint camera, cv::Mat* mat)
 {
     if (camera >= STREAM_COUNT)
         THROW_ERROR("Invalid stream");
-
-    mFrameAccessMutex.lock();
     *mat = mStreamData[camera];
-    mFrameAccessMutex.unlock();
 }
 
 const void* RealsenseCamera::getRawData(uint camera)
@@ -101,35 +133,30 @@ const void* RealsenseCamera::getRawData(uint camera)
 
 CameraIntrinsics RealsenseCamera::getIntrinsics(uint camera) const
 {
-    // get_stream_intrinsics is a const method which means that it is thread-safe. As there are no functions
-    // which modify the intrinsics, there are no race conditions here.
-    return buildIntrinsics(mDevice->get_stream_intrinsics(mapCameraToStream(camera)));
+    if (camera >= STREAM_COUNT)
+        THROW_ERROR("Invalid stream");
+    return mIntrinsics[camera];
 }
 
 glm::mat4 RealsenseCamera::getExtrinsics(uint camera1, uint camera2) const
 {
-    // Mapping a camera to itself
-    if (camera1 == camera2)
-        return glm::mat4();
-
-    // get_extrinsics is a const method which means that it is thread-safe. As there are no functions
-    // which modify the extrinsics, there are no race conditions here.
-    glm::mat4 out;
-    rs::extrinsics& extr = mDevice->get_extrinsics(mapCameraToStream(camera1), mapCameraToStream(camera2));
-    for (int row = 0; row < 3; row++)
-    {
-        for (int col = 0; col < 3; col++)
-        {
-            out[col][row] = extr.rotation[col * 3 + row];
-        }
-    }
-    out[3] = glm::vec4(extr.translation[0], extr.translation[1], extr.translation[2], 1.0f);
-    return out;
+    if (camera1 >= STREAM_COUNT || camera2 >= STREAM_COUNT)
+        THROW_ERROR("Invalid stream");
+    return mExtrinsics[camera1][camera2];
 }
 
 GLuint RealsenseCamera::getTexture(uint camera) const
 {
+    if (camera >= STREAM_COUNT)
+        THROW_ERROR("Invalid stream");
     return mStreamTextures[camera];
+}
+
+bool RealsenseCamera::isStreamEnabled(uint camera) const
+{
+    if (camera >= STREAM_COUNT)
+        THROW_ERROR("Invalid stream");
+    return mEnabledStreams & (1 << camera) != 0;
 }
 
 void RealsenseCamera::initialiseDevice()
@@ -163,8 +190,9 @@ rs::stream RealsenseCamera::mapCameraToStream(uint camera) const
     }
 }
 
-CameraIntrinsics RealsenseCamera::buildIntrinsics(rs::intrinsics& intr) const
+CameraIntrinsics RealsenseCamera::buildIntrinsics(uint camera) const
 {
+    rs::intrinsics& intr = mDevice->get_stream_intrinsics(mapCameraToStream(camera));
     CameraIntrinsics out;
 
     out.cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
@@ -184,47 +212,23 @@ CameraIntrinsics RealsenseCamera::buildIntrinsics(rs::intrinsics& intr) const
     return out;
 }
 
-void RealsenseCamera::captureLoop()
+glm::mat4 RealsenseCamera::buildExtrinsics(uint camera1, uint camera2) const
 {
-    while (mIsCapturing)
+    // Mapping a camera to itself
+    if (camera1 == camera2)
+        return glm::mat4();
+
+    // get_extrinsics is a const method which means that it is thread-safe. As there are no functions
+    // which modify the extrinsics, there are no race conditions here.
+    glm::mat4 out;
+    rs::extrinsics& extr = mDevice->get_extrinsics(mapCameraToStream(camera1), mapCameraToStream(camera2));
+    for (int row = 0; row < 3; row++)
     {
-        // Capture frames
-        try
+        for (int col = 0; col < 3; col++)
         {
-            mDevice->wait_for_frames();
+            out[col][row] = extr.rotation[col * 3 + row];
         }
-        catch (rs::error&)
-        {
-            cout << "F200 was disconnected randomly due to tugging of the wire - attempting to reinitialise..." << endl;
-            //delete mContext;
-            //initialiseDevice();
-        }
-
-        mFrameAccessMutex.lock();
-
-        // Wrap the data in a cv::Mat then copy it. This const_cast is sadly necessary as the
-        // getRawData interface isn't supposed to allow writes to this location of memory.
-        // As we immediately copy the data, it shouldn't matter much here.
-        if (mEnabledStreams & ENABLE_COLOUR)
-        {
-            CameraIntrinsics& intr = getIntrinsics(COLOUR);
-            cv::Mat wrapped(intr.height, intr.width, CV_8UC3, const_cast<void*>(getRawData(COLOUR)));
-            wrapped.copyTo(mStreamData[COLOUR]);
-        }
-        if (mEnabledStreams & ENABLE_DEPTH)
-        {
-            CameraIntrinsics& intr = getIntrinsics(DEPTH);
-            cv::Mat wrapped(intr.height, intr.width, CV_16UC1, const_cast<void*>(getRawData(DEPTH)));
-            wrapped.copyTo(mStreamData[DEPTH]);
-        }
-        if (mEnabledStreams & ENABLE_INFRARED)
-        {
-            CameraIntrinsics& intr = getIntrinsics(INFRARED);
-            cv::Mat wrapped(intr.height, intr.width, CV_8UC1, const_cast<void*>(getRawData(INFRARED)));
-            wrapped.copyTo(mStreamData[INFRARED]);
-        }
-
-        mFrameAccessMutex.unlock();
-
     }
+    out[3] = glm::vec4(extr.translation[0], extr.translation[1], extr.translation[2], 1.0f);
+    return out;
 }

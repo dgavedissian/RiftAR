@@ -17,8 +17,9 @@ public:
     };
 
     void capture() override;
+    void copyData() override;
     void updateTextures() override;
-    void copyFrameIntoCudaImage(uint camera, cudaGraphicsResource* resource);
+
     void copyFrameIntoCVImage(uint camera, cv::Mat* mat) override;
     const void* getRawData(uint camera) override;
 
@@ -30,6 +31,7 @@ private:
     sl::zed::Camera* mCamera;
     GLuint mTexture[2];
     cudaGraphicsResource* mCudaImage[2];
+    uchar* mStreamData[2];
 
     CameraIntrinsics mIntrinsics;
 

@@ -23,8 +23,9 @@ class CameraSource
 public:
     virtual ~CameraSource() {}
     
-    virtual void capture() = 0;
-    virtual void updateTextures() = 0;
+    virtual void capture() = 0;         // Capture frame data from the camera API
+    virtual void copyData() = 0;        // Copy data from API to intermediate store
+    virtual void updateTextures() = 0;  // Update OpenGL textures from intermediate store
 
     // Helper functions for other algorithms
     virtual void copyFrameIntoCVImage(uint camera, cv::Mat* mat) = 0;

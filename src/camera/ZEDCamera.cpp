@@ -30,6 +30,11 @@ ZEDCamera::ZEDCamera(sl::zed::ZEDResolution_mode resolution, int fps)
     // Set up resources for each eye
     for (int eye = LEFT; eye <= RIGHT; eye++)
     {
+        // Initialise stream data buffers
+        CUDA_CHECK(cudaMalloc(&mStreamData[0], mIntrinsics.width * mIntrinsics.height * 4));
+        CUDA_CHECK(cudaMalloc(&mStreamData[1], mIntrinsics.width * mIntrinsics.height * 4));
+
+        // Initialise OpenGL texture
         glGenTextures(1, &mTexture[eye]);
         glBindTexture(GL_TEXTURE_2D, mTexture[eye]);
         GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mIntrinsics.width, mIntrinsics.height, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
@@ -45,31 +50,36 @@ ZEDCamera::ZEDCamera(sl::zed::ZEDResolution_mode resolution, int fps)
 
 ZEDCamera::~ZEDCamera()
 {
+    cudaFree(mStreamData[0]);
+    cudaFree(mStreamData[1]);
     delete mCamera;
 }
 
 void ZEDCamera::capture()
 {
-    if (mCamera->grab(sl::zed::SENSING_MODE::RAW, false, false))
+    // Block until we have a frame
+    while (mCamera->grab(sl::zed::SENSING_MODE::RAW, false, false));
+}
+
+void ZEDCamera::copyData()
+{
+    for (int i = LEFT; i <= RIGHT; i++)
     {
-        //cout << "Error capturing frame from ZED" << endl;
+        sl::zed::Mat m = mCamera->retrieveImage_gpu(mapCameraToSide(i));
+        CUDA_CHECK(cudaMemcpy2D(mStreamData[i], mIntrinsics.width * 4, m.data, m.step, mIntrinsics.width * 4, mIntrinsics.height, cudaMemcpyDeviceToDevice));
     }
 }
 
 void ZEDCamera::updateTextures()
 {
-    copyFrameIntoCudaImage(LEFT, mCudaImage[LEFT]);
-    copyFrameIntoCudaImage(RIGHT, mCudaImage[RIGHT]);
-}
-
-void ZEDCamera::copyFrameIntoCudaImage(uint camera, cudaGraphicsResource* resource)
-{
-    sl::zed::Mat m = mCamera->retrieveImage_gpu(mapCameraToSide(camera));
     cudaArray_t arrIm;
-    cudaGraphicsMapResources(1, &mCudaImage[camera], 0);
-    cudaGraphicsSubResourceGetMappedArray(&arrIm, mCudaImage[camera], 0, 0);
-    cudaMemcpy2DToArray(arrIm, 0, 0, m.data, m.step, mIntrinsics.width * 4, mIntrinsics.height, cudaMemcpyDeviceToDevice);
-    cudaGraphicsUnmapResources(1, &mCudaImage[camera], 0);
+    for (int i = LEFT; i <= RIGHT; i++)
+    {
+        cudaGraphicsMapResources(1, &mCudaImage[i], 0);
+        cudaGraphicsSubResourceGetMappedArray(&arrIm, mCudaImage[i], 0, 0);
+        CUDA_CHECK(cudaMemcpy2DToArray(arrIm, 0, 0, mStreamData[i], mIntrinsics.width * 4, mIntrinsics.width * 4, mIntrinsics.height, cudaMemcpyDeviceToDevice));
+        cudaGraphicsUnmapResources(1, &mCudaImage[i], 0);
+    }
 }
 
 void ZEDCamera::copyFrameIntoCVImage(uint camera, cv::Mat* mat)

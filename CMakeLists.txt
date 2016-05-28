@@ -43,6 +43,7 @@ set(LIBS ${LIBS} librealsense)
 
 # Add include directories
 include_directories(${INCLUDE_DIRS})
+
 # Framework
 set(FRAMEWORK_SRC
     3rdparty/gl3w.c
@@ -84,6 +85,14 @@ find_package(OVR)
 add_subdirectory(3rdparty/kfusion)
 
 # RiftAR
+set(RIFTAR_SRC
+    src/simplex/DropSimplex.cpp
+    src/DebugOutput.cpp
+    src/KFusionTracker.cu
+    src/RealsenseDepthAdjuster.cu
+    src/RenderContext.cpp
+    src/RiftAR.cpp
+    src/RiftOutput.cpp)
 set(RIFTAR_HDR
     src/simplex/DropSimplex.h
     src/DebugOutput.h
@@ -93,14 +102,6 @@ set(RIFTAR_HDR
     src/RenderContext.h
     src/RiftAR.h
     src/RiftOutput.h)
-set(RIFTAR_SRC
-    src/simplex/DropSimplex.cpp
-    src/DebugOutput.cpp
-    src/KFusionTracker.cu
-    src/RealsenseDepthAdjuster.cu
-    src/RenderContext.cpp
-    src/RiftAR.cpp
-    src/RiftOutput.cpp)
 include_directories(${OVR_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/3rdparty/kfusion)
 cuda_add_executable(RiftAR ${RIFTAR_SRC} ${RIFTAR_HDR})
 target_link_libraries(RiftAR Framework Camera ${OVR_LIBRARY} kfusion)

@@ -26,6 +26,15 @@ void RiftAR::init()
 #endif
     mRealsense = new RealsenseCamera(640, 480, 60, RealsenseCamera::ENABLE_COLOUR | RealsenseCamera::ENABLE_DEPTH);
 
+    // Start the capture loop thread
+    mIsCapturing = true;
+    mInitialisedStream = false;
+    mCaptureThread = new std::thread(&RiftAR::captureLoop, this);
+
+    // Wait until the capture loop has at least one frame
+    std::unique_lock<std::mutex> lk(mCondVarMutex);
+    mCondVar.wait(lk, [this]{ return mInitialisedStream; });
+
     // Get the width/height of the output colour stream that the user sees
     cv::Size destinationSize;
 #ifdef ENABLE_ZED
@@ -85,6 +94,10 @@ void RiftAR::init()
 
 RiftAR::~RiftAR()
 {
+    mIsCapturing = false;
+    mCaptureThread->join();
+    delete mCaptureThread;
+
     if (mRenderCtx.alignmentModel)
         delete mRenderCtx.alignmentModel;
     if (mRenderCtx.model)
@@ -104,20 +117,18 @@ void RiftAR::render()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Update the textures
+    // Get current depth frame
+    cv::Mat depthFrame;
+    mCaptureLock.lock();
+    mRealsense->copyFrameIntoCVImage(RealsenseCamera::DEPTH, &depthFrame);
+    mRealsense->updateTextures();
 #ifdef ENABLE_ZED
-    mZed->capture();
     mZed->updateTextures();
 #endif
-    mRealsense->capture();
-    mRealsense->updateTextures();
-
-    // Read depth texture data
-    static cv::Mat frame;
-    mRealsense->copyFrameIntoCVImage(RealsenseCamera::DEPTH, &frame);
+    mCaptureLock.unlock();
 
     // Update the cameras pose
-    mTracking->update(frame);
+    mTracking->update(depthFrame);
     mRenderCtx.view = glm::inverse(mTracking->getCameraPose());
 
     // Search for the head
@@ -130,7 +141,7 @@ void RiftAR::render()
     }
 
     // Warp depth textures for occlusion
-    mRealsenseDepth->warpToPair(frame, mZedCalib, mRenderCtx.eyeMatrix[0], mRenderCtx.eyeMatrix[1]);
+    mRealsenseDepth->warpToPair(depthFrame, mZedCalib, mRenderCtx.eyeMatrix[0], mRenderCtx.eyeMatrix[1]);
 
     // Render scene
     mOutputCtx->renderScene(mRenderCtx);
@@ -190,7 +201,7 @@ void RiftAR::setupDepthWarpStream(cv::Size destinationSize)
         glm::inverse(convertCVToMat3<double>(rotationMatrix)),
         -convertCVToVec3<double>(translation));
 #else
-    glm::mat4 realsenseColourToZedLeft;
+    glm::mat4 realsenseColourToZedLeft; // identity
 #endif
 
     // Extrinsics to map from depth to colour in the F200
@@ -205,4 +216,35 @@ void RiftAR::setupDepthWarpStream(cv::Size destinationSize)
 #else
     mRenderCtx.eyeMatrix[0] = mRenderCtx.eyeMatrix[1] = mRealsenseToZedLeft;
 #endif
+}
+
+void RiftAR::captureLoop()
+{
+    while (mIsCapturing)
+    {
+        // Get current pose
+
+        // Capture from realsense
+#ifdef ENABLE_ZED
+        mZed->capture();
+#endif
+        mRealsense->capture();
+
+        // Copy captured data into an intermediate storage accessable by the main thread
+        mCaptureLock.lock();
+#ifdef ENABLE_ZED
+        mZed->copyData();
+#endif
+        mRealsense->copyData();
+        mCaptureLock.unlock();
+
+        // Signal that the application can continue
+        if (!mInitialisedStream)
+        {
+            mCondVarMutex.lock();
+            mInitialisedStream = true;
+            mCondVarMutex.unlock();
+            mCondVar.notify_all();
+        }
+    }
 }

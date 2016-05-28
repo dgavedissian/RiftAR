@@ -1,5 +1,9 @@
 #pragma once
 
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
 #include "lib/Rectangle2D.h"
 #include "lib/Model.h"
 #include "lib/Shader.h"
@@ -24,6 +28,7 @@ public:
 
 private:
     void setupDepthWarpStream(cv::Size destinationSize);
+    void captureLoop();
 
     ZEDCamera* mZed;
     RealsenseCamera* mRealsense;
@@ -39,5 +44,16 @@ private:
     // Rendering
     RenderContext mRenderCtx;
     OutputContext* mOutputCtx;
+
+    // Capture thread
+    bool mIsCapturing;
+    std::thread* mCaptureThread;
+    std::mutex mCaptureLock;
+    cv::Mat mDepth;
+
+    // Condition variable to wait until capture thread has at least one frame
+    std::condition_variable mCondVar;
+    std::mutex mCondVarMutex;
+    bool mInitialisedStream;
 
 };

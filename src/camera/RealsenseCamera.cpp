@@ -218,8 +218,6 @@ glm::mat4 RealsenseCamera::buildExtrinsics(uint camera1, uint camera2) const
     if (camera1 == camera2)
         return glm::mat4();
 
-    // get_extrinsics is a const method which means that it is thread-safe. As there are no functions
-    // which modify the extrinsics, there are no race conditions here.
     glm::mat4 out;
     rs::extrinsics& extr = mDevice->get_extrinsics(mapCameraToStream(camera1), mapCameraToStream(camera2));
     for (int row = 0; row < 3; row++)

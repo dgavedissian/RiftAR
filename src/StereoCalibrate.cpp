@@ -1,8 +1,10 @@
-#include "lib/Common.h"
-#include "lib/RealsenseCamera.h"
-#include "lib/ZEDCamera.h"
+#include "Common.h"
+
 #include "lib/Rectangle2D.h"
 #include "lib/Shader.h"
+
+#include "camera/RealsenseCamera.h"
+#include "camera/ZEDCamera.h"
 
 class StereoCalibrate : public App
 {

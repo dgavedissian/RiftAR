@@ -44,8 +44,10 @@ public:
     {
         // Read the left frame from both cameras
         mZed->capture();
+        mZed->copyData();
         mZed->copyFrameIntoCVImage(ZEDCamera::LEFT, &mFrame[0]);
         mRealsense->capture();
+        mRealsense->copyData();
         mRealsense->copyFrameIntoCVImage(RealsenseCamera::COLOUR, &mFrame[1]);
 
         // Display them

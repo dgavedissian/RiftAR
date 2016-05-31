@@ -202,9 +202,9 @@ void RiftAR::setupDepthWarpStream(cv::Size destinationSize)
     cv::Mat rotationMatrix, translation;
     fs["R"] >> rotationMatrix;
     fs["T"] >> translation;
-    glm::mat4 realsenseColourToZedLeft = buildExtrinsic(
-        glm::inverse(convertCVToMat3<double>(rotationMatrix)),
-        -convertCVToVec3<double>(translation));
+    glm::mat4 realsenseColourToZedLeft = glm::inverse(buildExtrinsic(
+        convertCVToMat3<double>(rotationMatrix),
+        convertCVToVec3<double>(translation)));
 #else
     glm::mat4 realsenseColourToZedLeft; // identity
 #endif

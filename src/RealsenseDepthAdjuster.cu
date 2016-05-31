@@ -151,7 +151,7 @@ void RealsenseDepthAdjuster::warpToPair(cv::Mat& frame, const glm::mat3& destCal
     CUDA_CHECK(cudaMemcpy(mSrcImage.data, frame.ptr<uint16_t>(), frame.cols * frame.rows * sizeof(uint16_t), cudaMemcpyHostToDevice));
 
     // Set up kernel block sizes
-    dim3 blockDim(16, 16);
+    dim3 blockDim(32, 32);
     dim3 srcGridDim((frame.cols + blockDim.x - 1) / blockDim.x, (frame.rows + blockDim.y - 1) / blockDim.y);
     dim3 destGridDim((mColourSize.width + blockDim.x - 1) / blockDim.x, (mColourSize.height + blockDim.y - 1) / blockDim.y);
 

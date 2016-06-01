@@ -12,7 +12,7 @@
 class RiftOutput : public OutputContext
 {
 public:
-    RiftOutput(cv::Size backbufferSize, float cameraFovH, float cameraFovV, bool invertColour);
+    RiftOutput(cv::Size backbufferSize, uint cameraWidth, uint cameraHeight, float cameraFovH, bool invertColour);
     ~RiftOutput();
 
     void newFrame(int& frameIndex, ovrPosef poses[2]);

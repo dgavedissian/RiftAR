@@ -1,7 +1,7 @@
 #include "Common.h"
 #include "RiftOutput.h"
 
-RiftOutput::RiftOutput(cv::Size backbufferSize, float cameraFovH, float cameraFovV, bool invertColour) :
+RiftOutput::RiftOutput(cv::Size backbufferSize, uint cameraWidth, uint cameraHeight, float cameraFovH, bool invertColour) :
     mFrameIndex(0)
 {
     ovrResult result = ovr_Initialize(nullptr);
@@ -77,16 +77,20 @@ RiftOutput::RiftOutput(cv::Size backbufferSize, float cameraFovH, float cameraFo
         THROW_ERROR("Failed to create the mirror texture");
     ovr_GetMirrorTextureBufferGL(mSession, mMirrorTexture, &mMirrorTextureId);
 
-    // Calculate correct dimensions
+    // Calculate Oculus FOV
     float ovrFovH = atanf(mHmdDesc.DefaultEyeFov[0].LeftTan) + atanf(mHmdDesc.DefaultEyeFov[0].RightTan);
     float ovrFovV = atanf(mHmdDesc.DefaultEyeFov[0].UpTan) + atanf(mHmdDesc.DefaultEyeFov[0].DownTan);
-    float width = cameraFovH / ovrFovH;
-    float height = cameraFovV / ovrFovV;
+
+    // Calculate the width and height of the camera stream being displayed on the headset in GL coordinates
+    float width = cameraFovH / ovrFovH * (mBufferSize.w / 2);
+    float height = width * (cameraHeight / (float)cameraWidth);
+    float widthGL = width / (mBufferSize.w / 2);
+    float heightGL = height / mBufferSize.h;
 
     // Create rendering primitives
     mQuad = new Rectangle2D(
-        glm::vec2(0.5f - width * 0.5f, 0.5f - height * 0.5f),
-        glm::vec2(0.5f + width * 0.5f, 0.5f + height * 0.5f));
+        glm::vec2(0.5f - widthGL * 0.5f, 0.5f - heightGL * 0.5f),
+        glm::vec2(0.5f + widthGL * 0.5f, 0.5f + heightGL * 0.5f));
     mFullscreenQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
     mFullscreenShader = new Shader("../media/quad.vs", "../media/quad.fs");
     mFullscreenShader->bind();

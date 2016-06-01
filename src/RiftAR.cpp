@@ -54,14 +54,16 @@ void RiftAR::init()
 
     // Set up output
 #ifdef ENABLE_ZED
-    float fovH = mZed->getIntrinsics(ZEDCamera::LEFT).fovH;
-    float fovV = mZed->getIntrinsics(ZEDCamera::LEFT).fovV;
+    float width = mZed->getWidth(ZEDCamera::LEFT);
+    float height = mZed->getHeight(ZEDCamera::LEFT);
+    float fovh = mZed->getIntrinsics(ZEDCamera::LEFT).fovH;
     mRenderCtx.colourTextures[0] = mZed->getTexture(ZEDCamera::LEFT);
     mRenderCtx.colourTextures[1] = mZed->getTexture(ZEDCamera::RIGHT);
     mRenderCtx.projection = mZed->getIntrinsics(ZEDCamera::LEFT).buildGLProjection(mRenderCtx.znear, mRenderCtx.zfar);
 #else
-    float fovH = mRealsense->getIntrinsics(RealsenseCamera::COLOUR).fovH;
-    float fovV = mRealsense->getIntrinsics(RealsenseCamera::COLOUR).fovV;
+    float width = mRealsense->getWidth(RealsenseCamera::COLOUR);
+    float height = mRealsense->getHeight(RealsenseCamera::COLOUR);
+    float fovh = mRealsense->getIntrinsics(RealsenseCamera::COLOUR).fovH;
     mRenderCtx.colourTextures[0] = mRealsense->getTexture(RealsenseCamera::COLOUR);
     mRenderCtx.colourTextures[1] = mRealsense->getTexture(RealsenseCamera::COLOUR);
     mRenderCtx.projection = mRealsense->getIntrinsics(RealsenseCamera::COLOUR).buildGLProjection(mRenderCtx.znear, mRenderCtx.zfar);
@@ -73,7 +75,7 @@ void RiftAR::init()
     bool invertColours = false;
 #endif
 #ifdef RIFT_DISPLAY
-    mOutputCtx = new RiftOutput(getSize(), fovH, fovV, invertColours);
+    mOutputCtx = new RiftOutput(getSize(), width, height, fovh, invertColours);
 #else
     mOutputCtx = new DebugOutput(mRenderCtx, invertColours);
 #endif

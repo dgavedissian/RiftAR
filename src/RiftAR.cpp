@@ -11,7 +11,8 @@
 
 DEFINE_MAIN(RiftAR);
 
-RiftAR::RiftAR()
+RiftAR::RiftAR() :
+    mAddArtificalLatency(false)
 {
 }
 
@@ -84,19 +85,22 @@ void RiftAR::init()
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
 
-    // Start the capture loop thread and wait until the capture loop has captured at least one frame
+    // Capture a single frame and fork to the capture thread
+#ifdef ENABLE_ZED
+    mZed->capture();
+    mZed->copyData();
+#endif
+    mRealsense->capture();
+    mRealsense->copyData();
+    mHasFrame = true;
     mIsCapturing = true;
-    mInitialisedStream = false;
-    mCaptureThread = new std::thread(&RiftAR::captureLoop, this);
-    std::unique_lock<std::mutex> lk(mCondVarMutex);
-    mCondVar.wait(lk, [this]{ return mInitialisedStream; });
+    mCaptureThread = std::thread(&RiftAR::captureLoop, this);
 }
 
 RiftAR::~RiftAR()
 {
     mIsCapturing = false;
-    mCaptureThread->join();
-    delete mCaptureThread;
+    mCaptureThread.join();
 
     if (mRenderCtx.alignmentModel)
         delete mRenderCtx.alignmentModel;
@@ -117,25 +121,15 @@ void RiftAR::render()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
-    // Try and grab the latest pose information
-#ifdef RIFT_DISPLAY
-    mPoseLock.lock();
-    static_cast<RiftOutput*>(mOutputCtx)->setFramePose(mFrameIndex, mEyePose);
-    mPoseLock.unlock();
-#endif
+    // Attempt to grab the next frame
+    getFrame();
 
-    // Get current depth frame
-    cv::Mat depthFrame;
-    mCaptureLock.lock();
-    mRealsense->copyFrameIntoCVImage(RealsenseCamera::DEPTH, &depthFrame);
-    mRealsense->updateTextures();
-#ifdef ENABLE_ZED
-    mZed->updateTextures();
-#endif
-    mCaptureLock.unlock();
+    // Add artificial latency
+    if (mAddArtificalLatency)
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
     // Update the cameras pose
-    mTracking->update(depthFrame);
+    mTracking->update(mDepthFrame);
     mRenderCtx.view = glm::inverse(mTracking->getCameraPose());
 
     // Search for the head
@@ -148,7 +142,7 @@ void RiftAR::render()
     }
 
     // Warp depth textures for occlusion
-    mRealsenseDepth->warpToPair(depthFrame, mZedCalib, mRenderCtx.eyeMatrix[0], mRenderCtx.eyeMatrix[1]);
+    mRealsenseDepth->warpToPair(mDepthFrame, mZedCalib, mRenderCtx.eyeMatrix[0], mRenderCtx.eyeMatrix[1]);
 
     // Render scene
     mOutputCtx->renderScene(mRenderCtx);
@@ -165,7 +159,7 @@ void RiftAR::keyEvent(int key, int scancode, int action, int mods)
                 debug->toggleDebug();
         }
 
-        if (key == GLFW_KEY_L)
+        if (key == GLFW_KEY_S)
         {
             mTracking->beginSearchingFor(mRenderCtx.alignmentModel);
             mRenderCtx.lookingForHead = true;
@@ -174,6 +168,11 @@ void RiftAR::keyEvent(int key, int scancode, int action, int mods)
         if (key == GLFW_KEY_R)
         {
             mTracking->reset();
+        }
+
+        if (key == GLFW_KEY_L)
+        {
+            mAddArtificalLatency = !mAddArtificalLatency;
         }
     }
 }
@@ -231,9 +230,9 @@ void RiftAR::captureLoop()
     {
         // Get current pose
 #ifdef RIFT_DISPLAY
-        mPoseLock.lock();
-        static_cast<RiftOutput*>(mOutputCtx)->newFrame(mFrameIndex, mEyePose);
-        mPoseLock.unlock();
+        int frameIndex = mFrameIndex;
+        ovrPosef eyePose[2];
+        static_cast<RiftOutput*>(mOutputCtx)->newFrame(frameIndex, eyePose);
 #endif
 
         // Capture from the cameras
@@ -242,21 +241,44 @@ void RiftAR::captureLoop()
 #endif
         mRealsense->capture();
 
-        // Copy captured data into an intermediate storage accessable by the main thread
-        mCaptureLock.lock();
+        // Copy captured data and pose information
+        std::lock_guard<std::mutex> guard(mFrameMutex);
+#ifdef RIFT_DISPLAY
+        mFrameIndex = frameIndex;
+        mEyePose[0] = eyePose[0];
+        mEyePose[1] = eyePose[1];
+#endif
 #ifdef ENABLE_ZED
         mZed->copyData();
 #endif
         mRealsense->copyData();
-        mCaptureLock.unlock();
 
-        // Signal that the application can continue
-        if (!mInitialisedStream)
-        {
-            mCondVarMutex.lock();
-            mInitialisedStream = true;
-            mCondVarMutex.unlock();
-            mCondVar.notify_all();
-        }
+        // We now have a frame
+        mHasFrame = true;
     }
+}
+
+bool RiftAR::getFrame()
+{
+    if (!mHasFrame)
+        return false;
+
+    std::lock_guard<std::mutex> guard(mFrameMutex);
+
+    // Set the current frame pose
+#ifdef RIFT_DISPLAY
+    static_cast<RiftOutput*>(mOutputCtx)->setFramePose(mFrameIndex, mEyePose);
+#endif
+
+    // Copy frames from the cameras
+    mRealsense->copyFrameIntoCVImage(RealsenseCamera::DEPTH, &mDepthFrame);
+    mRealsense->updateTextures();
+#ifdef ENABLE_ZED
+    mZed->updateTextures();
+#endif
+
+    // Mark this frame as consumed
+    mHasFrame = false;
+
+    return true;
 }

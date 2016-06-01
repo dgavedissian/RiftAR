@@ -1,8 +1,8 @@
 #pragma once
 
+#include <chrono>
 #include <thread>
 #include <mutex>
-#include <condition_variable>
 
 #include <OVR_CAPI.h>
 
@@ -30,7 +30,10 @@ public:
 
 private:
     void setupDepthWarpStream(cv::Size destinationSize);
+
+    // Capture loop
     void captureLoop();
+    bool getFrame();
 
     ZEDCamera* mZed;
     RealsenseCamera* mRealsense;
@@ -39,6 +42,7 @@ private:
     KFusionTracker* mTracking;
 
     // Warp parameters
+    cv::Mat mDepthFrame;
     RealsenseDepthAdjuster* mRealsenseDepth;
     glm::mat3 mZedCalib;
     glm::mat4 mRealsenseToZedLeft;
@@ -48,19 +52,17 @@ private:
     OutputContext* mOutputCtx;
 
     // Pose state
-    std::mutex mPoseLock;
     int mFrameIndex;
     ovrPosef mEyePose[2];
 
     // Capture thread
+    bool mHasFrame;
     bool mIsCapturing;
-    std::thread* mCaptureThread;
-    std::mutex mCaptureLock;
+    std::thread mCaptureThread;
+    std::mutex mFrameMutex;
     cv::Mat mDepth;
 
-    // Condition variable to wait until capture thread has at least one frame
-    std::condition_variable mCondVar;
-    std::mutex mCondVarMutex;
-    bool mInitialisedStream;
+    // Configuration
+    bool mAddArtificalLatency;
 
 };

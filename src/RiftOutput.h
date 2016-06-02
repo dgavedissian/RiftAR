@@ -18,7 +18,7 @@ public:
     void newFrame(int& frameIndex, ovrPosef poses[2]);
     void setFramePose(int frameIndex, ovrPosef poses[2]);
 
-    void renderScene(RenderContext& ctx) override;
+    void renderScene(RenderContext* ctx) override;
 
 private:
     ovrSession mSession;
@@ -34,6 +34,8 @@ private:
 
     int mFrameIndex;
     ovrPosef mEyePose[2];
+
+    cv::Size mFrameSize;
 
     Rectangle2D* mQuad;
     Rectangle2D* mFullscreenQuad;

@@ -48,7 +48,7 @@ private:
     glm::mat4 mRealsenseToZedLeft;
 
     // Rendering
-    RenderContext mRenderCtx;
+    RenderContext* mRenderCtx;
     OutputContext* mOutputCtx;
 
     // Pose state

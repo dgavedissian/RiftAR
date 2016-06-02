@@ -82,25 +82,24 @@ RiftOutput::RiftOutput(cv::Size backbufferSize, uint cameraWidth, uint cameraHei
     float ovrFovV = atanf(mHmdDesc.DefaultEyeFov[0].UpTan) + atanf(mHmdDesc.DefaultEyeFov[0].DownTan);
 
     // Calculate the width and height of the camera stream being displayed on the headset in GL coordinates
-    float width = cameraFovH / ovrFovH * (mBufferSize.w / 2);
-    float height = width * (cameraHeight / (float)cameraWidth);
-    float widthGL = width / (mBufferSize.w / 2);
-    float heightGL = height / mBufferSize.h;
+    mFrameSize.width = cameraFovH / ovrFovH * (mBufferSize.w / 2);
+    mFrameSize.height = mFrameSize.width * (cameraHeight / (float)cameraWidth);
+    float widthGL = (float)mFrameSize.width / (mBufferSize.w / 2);
+    float heightGL = (float)mFrameSize.height / mBufferSize.h;
+
+    // Calculate offset
+    float offsetLensCenterX = (atanf(mHmdDesc.DefaultEyeFov[0].LeftTan) / ovrFovH) * 2.f - 1.f;
+    float offsetLensCenterY = (atanf(mHmdDesc.DefaultEyeFov[0].UpTan) / ovrFovV) * 2.f - 1.f;
 
     // Create rendering primitives
-    mQuad = new Rectangle2D(
-        glm::vec2(0.5f - widthGL * 0.5f, 0.5f - heightGL * 0.5f),
-        glm::vec2(0.5f + widthGL * 0.5f, 0.5f + heightGL * 0.5f));
     mFullscreenQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
-    mFullscreenShader = new Shader("../media/quad.vs", "../media/quad.fs");
-    mFullscreenShader->bind();
-    mFullscreenShader->setUniform("invertColour", invertColour);
     mRiftMirrorShader = new Shader("../media/quad.vs", "../media/quad.fs");
 }
 
 RiftOutput::~RiftOutput()
 {
     delete mRiftMirrorShader;
+    delete mFullscreenQuad;
     ovr_Destroy(mSession);
     ovr_Shutdown();
 }
@@ -123,9 +122,8 @@ void RiftOutput::setFramePose(int frameIndex, ovrPosef poses[2])
     mEyePose[1] = poses[1];
 }
 
-void RiftOutput::renderScene(RenderContext& ctx)
+void RiftOutput::renderScene(RenderContext* ctx)
 {
-
     // Get texture swap index where we must draw our frame
     GLuint curTexId;
     int curIndex;
@@ -138,22 +136,17 @@ void RiftOutput::renderScene(RenderContext& ctx)
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, mDepthBufferId, 0);
 
     // Clear the frame buffer
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Render for each Oculus eye the equivalent ZED image
-    mFullscreenShader->bind();
     for (int i = 0; i < 2; i++)
     {
-        // Set the left or right vertical half of the buffer as the viewport
-        glViewport(i == ovrEye_Left ? 0 : mBufferSize.w / 2, 0, mBufferSize.w / 2, mBufferSize.h);
-
-        // Bind the left or right ZED image
-        glBindTexture(GL_TEXTURE_2D, ctx.colourTextures[i]);
-        mQuad->render();
-
-        // Render the scene
-        ctx.renderScene(i);
+        cv::Vec2i viewportPosition(i == ovrEye_Left ? 0 : mBufferSize.w / 2, 0);
+        cv::Size viewportSize(mBufferSize.w / 2, mBufferSize.h);
+        cv::Vec2i viewportMid = viewportPosition + cv::Vec2i(viewportSize.width, viewportSize.height) / 2;
+        ctx->setViewport(viewportMid - cv::Vec2i(mFrameSize.width, mFrameSize.height) / 2, mFrameSize);
+        ctx->renderScene(i);
     }
 
     // Commit changes to the textures so they get picked up in the next frame
@@ -176,8 +169,9 @@ void RiftOutput::renderScene(RenderContext& ctx)
         THROW_ERROR("Failed to submit frame!");
 
     // Draw the mirror texture
-    glViewport(0, 0, ctx.backbufferSize.width, ctx.backbufferSize.height);
+    glViewport(0, 0, ctx->backbufferSize.width, ctx->backbufferSize.height);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, mMirrorTextureId);
     mRiftMirrorShader->bind();
     mFullscreenQuad->render();

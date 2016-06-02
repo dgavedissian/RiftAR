@@ -6,7 +6,7 @@
 
 #include "KFusionTracker.h"
 
-#define RIFT_DISPLAY
+//#define RIFT_DISPLAY
 //#define ENABLE_ZED
 
 DEFINE_MAIN(RiftAR);
@@ -50,11 +50,13 @@ void RiftAR::init()
     mRenderCtx.depthScale = USHRT_MAX * mRealsense->getDepthScale();
     mRenderCtx.znear = 0.01f;
     mRenderCtx.zfar = 10.0f;
-    mRenderCtx.alignmentModel = new Model("../media/meshes/bob.stl");
+    mRenderCtx.alignmentModel = new Model("../media/meshes/bob-smooth.stl");
+    mRenderCtx.expandedAlignmentModel = new Model("../media/meshes/bob-smooth.stl");
     mRenderCtx.model = new Model("../media/meshes/graymatter.stl");
 
     // Set up output
 #ifdef ENABLE_ZED
+    bool invertColours = true;
     float width = mZed->getWidth(ZEDCamera::LEFT);
     float height = mZed->getHeight(ZEDCamera::LEFT);
     float fovh = mZed->getIntrinsics(ZEDCamera::LEFT).fovH;
@@ -62,6 +64,7 @@ void RiftAR::init()
     mRenderCtx.colourTextures[1] = mZed->getTexture(ZEDCamera::RIGHT);
     mRenderCtx.projection = mZed->getIntrinsics(ZEDCamera::LEFT).buildGLProjection(mRenderCtx.znear, mRenderCtx.zfar);
 #else
+    bool invertColours = false;
     float width = mRealsense->getWidth(RealsenseCamera::COLOUR);
     float height = mRealsense->getHeight(RealsenseCamera::COLOUR);
     float fovh = mRealsense->getIntrinsics(RealsenseCamera::COLOUR).fovH;
@@ -70,20 +73,16 @@ void RiftAR::init()
     mRenderCtx.projection = mRealsense->getIntrinsics(RealsenseCamera::COLOUR).buildGLProjection(mRenderCtx.znear, mRenderCtx.zfar);
 #endif
 
-#ifdef ENABLE_ZED
-    bool invertColours = true;
-#else
-    bool invertColours = false;
-#endif
 #ifdef RIFT_DISPLAY
     mOutputCtx = new RiftOutput(getSize(), width, height, fovh, invertColours);
 #else
     mOutputCtx = new DebugOutput(mRenderCtx, invertColours);
 #endif
 
-    // Enable culling and depth testing
+    // Enable culling, depth testing and stencil testing
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_STENCIL_TEST);
 
     // Capture a single frame and fork to the capture thread
 #ifdef ENABLE_ZED
@@ -138,6 +137,7 @@ void RiftAR::render()
         mRenderCtx.lookingForHead = false;
         mRenderCtx.foundTransform = true;
         mRenderCtx.alignmentModel->setTransform(mRenderCtx.headTransform);
+        mRenderCtx.expandedAlignmentModel->setTransform(mRenderCtx.headTransform * glm::scale(glm::mat4(), glm::vec3(1.1f, 1.1f, 1.1f)));
         mRenderCtx.model->setTransform(mRenderCtx.headTransform);
     }
 

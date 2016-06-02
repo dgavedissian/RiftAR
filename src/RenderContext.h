@@ -2,6 +2,8 @@
 
 class Model;
 
+// TODO: Make this into a class called "Renderer" and move camera frame rendering to here so Rift
+// and Debug show the same thing
 struct RenderContext
 {
     cv::Size backbufferSize;
@@ -15,6 +17,7 @@ struct RenderContext
     float znear, zfar;
     glm::mat4 view, projection;
     Model* alignmentModel;
+    Model* expandedAlignmentModel; // TODO: probably worth allowing a model to share a mesh
     Model* model;
 
     // Alignment

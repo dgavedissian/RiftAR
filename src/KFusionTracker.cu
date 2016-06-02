@@ -252,6 +252,7 @@ float KFusionTracker::getCost(Model* model, Volume volume, const glm::mat4& tran
 
 glm::mat3 KFusionTracker::convKFusionCoordSystem(const glm::mat3& rotation) const
 {
+    /*
     glm::quat q = glm::quat_cast(rotation);
 
     // Mirror along x axis
@@ -259,6 +260,13 @@ glm::mat3 KFusionTracker::convKFusionCoordSystem(const glm::mat3& rotation) cons
     q.z *= -1.0f;
 
     return glm::mat3_cast(q);
+    */
+    glm::mat3 newRotation = rotation;
+    newRotation[0][1] *= -1.0f;
+    newRotation[0][2] *= -1.0f;
+    newRotation[1][0] *= -1.0f;
+    newRotation[2][0] *= -1.0f;
+    return newRotation;
 }
 
 glm::mat4 KFusionTracker::convKFusionCoordSystem(const glm::mat4& transform) const

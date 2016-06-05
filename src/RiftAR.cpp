@@ -6,8 +6,8 @@
 
 #include "KFusionTracker.h"
 
-#define RIFT_DISPLAY
-#define ENABLE_ZED
+//#define RIFT_DISPLAY
+//#define ENABLE_ZED
 
 DEFINE_MAIN(RiftAR);
 

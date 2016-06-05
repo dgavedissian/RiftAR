@@ -240,7 +240,10 @@ float KFusionTracker::getCost(Model* model, Volume volume, const glm::mat4& tran
     float sum = 0.0f;
     for (int i = 0; i < count; i++)
         sum += costs[i];
-    sum *= 1000.0f / count;
+
+    // Multiply by 1000 here to convert from metres to millimetres, which helps with floating point
+    // inaccuracy when using the drop simplex optimiser
+    sum *= 1000.0f / count; 
 
     // Free memory and return
     delete[] vertices;
@@ -252,15 +255,6 @@ float KFusionTracker::getCost(Model* model, Volume volume, const glm::mat4& tran
 
 glm::mat3 KFusionTracker::convKFusionCoordSystem(const glm::mat3& rotation) const
 {
-    /*
-    glm::quat q = glm::quat_cast(rotation);
-
-    // Mirror along x axis
-    q.y *= -1.0f;
-    q.z *= -1.0f;
-
-    return glm::mat3_cast(q);
-    */
     glm::mat3 newRotation = rotation;
     newRotation[0][1] *= -1.0f;
     newRotation[0][2] *= -1.0f;
@@ -290,10 +284,15 @@ double KFusionTracker::CostFunction::evaluate(const std::vector<double> &paramet
 
 glm::mat4 KFusionTracker::CostFunction::mat4FromParameters(const std::vector<double>& parameters)
 {
-    // Build matrix from the 6 parameters [x, y, z, pitch, yaw, roll]
+    // Build matrix from the 6 parameters [x, y, z, rot-x, rot-y, rot-z]
     glm::mat4 translation = glm::translate(glm::mat4(), glm::vec3(parameters[0], parameters[1], parameters[2]));
-    glm::mat4 rotation = glm::yawPitchRoll((float)parameters[4], (float)parameters[3], (float)parameters[5]);
+    glm::mat4 rotation = glm::eulerAngleZ((float)parameters[5]) * glm::eulerAngleY((float)parameters[4]) * glm::eulerAngleX((float)parameters[3]);
     return translation * rotation;
+}
+
+bool floatEq(float a, float b)
+{
+    return fabs(a - b) < 1e-6f; // epsilon value
 }
 
 void KFusionTracker::CostFunction::mat4ToParameters(const glm::mat4& matrix, std::vector<double>& parameters)
@@ -302,7 +301,45 @@ void KFusionTracker::CostFunction::mat4ToParameters(const glm::mat4& matrix, std
     parameters[1] = matrix[3][1];
     parameters[2] = matrix[3][2];
 
-    glm::vec3 eulerAngles = glm::eulerAngles(glm::quat_cast(matrix));
+    glm::vec3 eulerAngles;
+    const float PI = 3.1415927;
+    if (floatEq(matrix[0][2], -1.0f))
+    {
+        eulerAngles.x = 0.0f;
+        eulerAngles.y = PI * 0.5f;
+        eulerAngles.z = atan2(matrix[1][0], matrix[2][0]);
+    }
+    else if (floatEq(matrix[0][2], 1.0f))
+    {
+        eulerAngles.x = 0.0f;
+        eulerAngles.y = -PI * 0.5f;
+        eulerAngles.z = atan2(-matrix[1][0], -matrix[2][0]);
+    }
+    else
+    {
+        float theta1 = -asin(matrix[0][2]);
+        float theta2 = PI - theta1;
+
+        float psi1 = atan2(matrix[1][2] / cos(theta1), matrix[2][2] / cos(theta1));
+        float psi2 = atan2(matrix[1][2] / cos(theta2), matrix[2][2] / cos(theta2));
+
+        float phi1 = atan2(matrix[0][1] / cos(theta1), matrix[0][0] / cos(theta1));
+        float phi2 = atan2(matrix[0][1] / cos(theta2), matrix[0][0] / cos(theta2));
+
+        if ((fabs(theta1) + fabs(psi1) + fabs(phi1)) < (fabs(theta2) + fabs(psi2) + fabs(phi2)))
+        {
+            eulerAngles.x = psi1;
+            eulerAngles.y = theta1;
+            eulerAngles.z = phi1;
+        }
+        else
+        {
+            eulerAngles.x = psi2;
+            eulerAngles.y = theta2;
+            eulerAngles.z = phi2;
+        }
+    }
+
     parameters[3] = eulerAngles.x;
     parameters[4] = eulerAngles.y;
     parameters[5] = eulerAngles.z;

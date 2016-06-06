@@ -63,7 +63,7 @@ void setSphereWrap(Volume volume, const float3 center, const float radius, const
 template <typename T> struct gl;
 
 template<> struct gl<unsigned char> {
-    static const int format=GL_LUMINANCE;
+    static const int format=GL_RED; // David: Patch for GL3+
     static const int type  =GL_UNSIGNED_BYTE;
 };
 
@@ -78,7 +78,7 @@ template<> struct gl<uchar4> {
 };
 
  template<> struct gl<float> {
-    static const int format=GL_LUMINANCE;
+    static const int format=GL_RED; // David: Patch for GL3+
     static const int type  =GL_FLOAT;
 };
 

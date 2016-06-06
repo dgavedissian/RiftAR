@@ -29,7 +29,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <TooN/se3.h>
 
 #ifdef WIN32
-#define WIN32_LEAN_AND_MEAN
+// David: Commented out duplicate macro
+//#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef min
 #undef max

@@ -92,6 +92,9 @@ KFusionTracker::KFusionTracker(RealsenseCamera* camera) :
 #ifdef KFUSION_DEBUG
     lightModel.alloc(make_uint2(intr.width, intr.height));
 #endif
+
+    mIsInitialising = true;
+    mFrameCounter = 0;
 }
 
 KFusionTracker::~KFusionTracker()
@@ -108,16 +111,14 @@ void KFusionTracker::update(cv::Mat frame)
 
     // Integrate new data using KFusion module
     bool shouldIntegrate = mKFusion->Track();
-    static bool reset = true;
-    static int counter = 0;
-    if ((shouldIntegrate && isSearching()) || reset)
+    if (shouldIntegrate || mIsInitialising)
     {
         mKFusion->Integrate();
         mKFusion->Raycast();
-        if (counter > 2)
-            reset = false;
+        if (mFrameCounter > 2)
+            mIsInitialising = false;
     }
-    counter++;
+    mFrameCounter++;
     CUDA_CHECK(cudaDeviceSynchronize());
 
     // Update the current pose
@@ -192,6 +193,8 @@ bool KFusionTracker::isSearching() const
 void KFusionTracker::reset()
 {
     mKFusion->Reset();
+    mIsInitialising = true;
+    mFrameCounter = 0;
 }
 
 glm::mat4 KFusionTracker::getCameraPose() const

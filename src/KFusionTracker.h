@@ -54,6 +54,10 @@ private:
     glm::vec3 mNewOrigin;
     drop::SimplexOptimizer mOptimiser;
 
+    // Initialisation parameters
+    bool mIsInitialising;
+    int mFrameCounter;
+
     // Current pose
     glm::mat4 mCameraPose;
 

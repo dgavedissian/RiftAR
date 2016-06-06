@@ -1,10 +1,15 @@
 #include "Common.h"
-#include "RiftAR.h"
+
+#include "lib/Rectangle2D.h"
+#include "lib/Entity.h"
+#include "lib/Shader.h"
 
 #include "RiftOutput.h"
 #include "DebugOutput.h"
 
 #include "KFusionTracker.h"
+
+#include "RiftAR.h"
 
 //#define RIFT_DISPLAY
 //#define ENABLE_ZED
@@ -39,13 +44,10 @@ void RiftAR::init()
 #endif
 
     // Set up scene
-    mRenderCtx = new RenderContext(invertColours, 0.01f, 10.0f, USHRT_MAX * mRealsense->getDepthScale());
+    mRenderCtx = new Renderer(invertColours, 0.01f, 10.0f, USHRT_MAX * mRealsense->getDepthScale());
     mRenderCtx->lookingForHead = false;
     mRenderCtx->foundTransform = false;
     mRenderCtx->backbufferSize = getSize();
-    mRenderCtx->alignmentModel = new Model("../media/meshes/bob-smooth.stl");
-    mRenderCtx->expandedAlignmentModel = new Model("../media/meshes/bob-smooth.stl");
-    mRenderCtx->model = new Model("../media/meshes/graymatter.stl");
 
     // Initialise tracking system
     mTracking = new KFusionTracker(mRealsense);
@@ -92,10 +94,6 @@ RiftAR::~RiftAR()
     mIsCapturing = false;
     mCaptureThread.join();
 
-    if (mRenderCtx->alignmentModel)
-        delete mRenderCtx->alignmentModel;
-    if (mRenderCtx->model)
-        delete mRenderCtx->model;
     delete mRenderCtx;
 
     delete mTracking;
@@ -128,9 +126,9 @@ void RiftAR::render()
     {
         mRenderCtx->lookingForHead = false;
         mRenderCtx->foundTransform = true;
-        mRenderCtx->alignmentModel->setTransform(mRenderCtx->headTransform);
-        mRenderCtx->expandedAlignmentModel->setTransform(mRenderCtx->headTransform * glm::scale(glm::mat4(), glm::vec3(1.1f, 1.1f, 1.1f)));
-        mRenderCtx->model->setTransform(mRenderCtx->headTransform);
+        mRenderCtx->alignmentEntity->setTransform(mRenderCtx->headTransform);
+        mRenderCtx->expandedAlignmentEntity->setTransform(mRenderCtx->headTransform * glm::scale(glm::mat4(), glm::vec3(1.1f, 1.1f, 1.1f)));
+        mRenderCtx->overlay->setTransform(mRenderCtx->headTransform);
     }
 
     // Warp depth textures for occlusion
@@ -151,7 +149,7 @@ void RiftAR::keyEvent(int key, int scancode, int action, int mods)
 
         if (key == GLFW_KEY_S)
         {
-            mTracking->beginSearchingFor(mRenderCtx->alignmentModel);
+            mTracking->beginSearchingFor(mRenderCtx->alignmentEntity);
             mRenderCtx->lookingForHead = true;
         }
 

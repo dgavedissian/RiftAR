@@ -45,34 +45,36 @@ set(LIBS ${LIBS} librealsense)
 include_directories(${INCLUDE_DIRS})
 
 # Framework
-set(FRAMEWORK_SRC
-    3rdparty/gl3w.c
-    src/lib/Main.cpp
-    src/lib/Timer.cpp
-    src/lib/Rectangle2D.cpp
-    src/lib/Shader.cpp
-	src/lib/Model.cpp)
 set(FRAMEWORK_HDR
     src/lib/App.h
     src/lib/Common.h
-    src/lib/Utils.h
-    src/lib/Timer.h
+	src/lib/Entity.h
+	src/lib/Model.h
     src/lib/Rectangle2D.h
     src/lib/Shader.h
-	src/lib/Model.h)
+    src/lib/Timer.h
+    src/lib/Utils.h)
+set(FRAMEWORK_SRC
+    3rdparty/gl3w.c
+    src/lib/Main.cpp
+	src/lib/Entity.cpp
+	src/lib/Model.cpp
+    src/lib/Rectangle2D.cpp
+    src/lib/Shader.cpp
+    src/lib/Timer.cpp)
 add_library(Framework STATIC ${FRAMEWORK_SRC} ${FRAMEWORK_HDR})
 target_link_libraries(Framework ${LIBS})
 
 # Camera
-set(CAMERA_SRC
-    src/camera/CameraSource.cpp
-    src/camera/RealsenseCamera.cpp
-    src/camera/ZEDCamera.cpp)
 set(CAMERA_HDR
     src/camera/Common.h
     src/camera/CameraSource.h
     src/camera/RealsenseCamera.h
     src/camera/ZEDCamera.h)
+set(CAMERA_SRC
+    src/camera/CameraSource.cpp
+    src/camera/RealsenseCamera.cpp
+    src/camera/ZEDCamera.cpp)
 link_directories(${ZED_LIBRARY_DIR})
 add_library(Camera STATIC ${CAMERA_SRC} ${CAMERA_HDR})
 target_link_libraries(Camera ${LIBS})
@@ -85,23 +87,23 @@ find_package(OVR)
 add_subdirectory(3rdparty/kfusion)
 
 # RiftAR
-set(RIFTAR_SRC
-    src/simplex/DropSimplex.cpp
-    src/DebugOutput.cpp
-    src/KFusionTracker.cu
-    src/RealsenseDepthAdjuster.cu
-    src/RenderContext.cpp
-    src/RiftAR.cpp
-    src/RiftOutput.cpp)
 set(RIFTAR_HDR
     src/simplex/DropSimplex.h
     src/DebugOutput.h
     src/KFusionTracker.h
     src/OutputContext.h
     src/RealsenseDepthAdjuster.h
-    src/RenderContext.h
+    src/Renderer.h
     src/RiftAR.h
     src/RiftOutput.h)
+set(RIFTAR_SRC
+    src/simplex/DropSimplex.cpp
+    src/DebugOutput.cpp
+    src/KFusionTracker.cu
+    src/RealsenseDepthAdjuster.cu
+    src/Renderer.cpp
+    src/RiftAR.cpp
+    src/RiftOutput.cpp)
 include_directories(${OVR_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/3rdparty/kfusion)
 cuda_add_executable(RiftAR ${RIFTAR_SRC} ${RIFTAR_HDR})
 target_link_libraries(RiftAR Framework Camera ${OVR_LIBRARY} kfusion)

@@ -6,10 +6,6 @@
 
 #include <OVR_CAPI.h>
 
-#include "lib/Rectangle2D.h"
-#include "lib/Model.h"
-#include "lib/Shader.h"
-
 #include "camera/RealsenseCamera.h"
 #include "camera/ZEDCamera.h"
 
@@ -48,7 +44,7 @@ private:
     glm::mat4 mRealsenseToZedLeft;
 
     // Rendering
-    RenderContext* mRenderCtx;
+    Renderer* mRenderCtx;
     OutputContext* mOutputCtx;
 
     // Pose state

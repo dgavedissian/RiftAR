@@ -18,7 +18,7 @@ public:
     void newFrame(int& frameIndex, ovrPosef poses[2]);
     void setFramePose(int frameIndex, ovrPosef poses[2]);
 
-    void renderScene(RenderContext* ctx) override;
+    void renderScene(Renderer* ctx) override;
 
 private:
     ovrSession mSession;

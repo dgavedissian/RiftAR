@@ -1,5 +1,6 @@
 #include "Common.h"
 #include "lib/Model.h"
+#include "lib/Entity.h"
 #include "camera/RealsenseCamera.h"
 #include "KFusionTracker.h"
 
@@ -135,7 +136,7 @@ void KFusionTracker::update(cv::Mat frame)
 #endif
 }
 
-void KFusionTracker::beginSearchingFor(Model* target)
+void KFusionTracker::beginSearchingFor(Entity* target)
 {
     mSearchTarget = target;
 }
@@ -145,25 +146,27 @@ bool KFusionTracker::checkTargetPosition(glm::mat4& resultTransform)
     if (!isSearching())
         return false;
 
+    Model* model = mSearchTarget->getModel();
+
     // Place the object in front of the camera
-    glm::mat4 modelOffset = glm::translate(glm::mat4(), mSearchTarget->getSize() * glm::vec3(-0.5f, -0.5f, -2.5f)); // 2 x model depth away from the camera (assuming it's origin is centred)
+    glm::mat4 modelOffset = glm::translate(glm::mat4(), model->getSize() * glm::vec3(-0.5f, -0.5f, -2.5f)); // 2 x model depth away from the camera (assuming it's origin is centred)
     mSearchTarget->setTransform(mCameraPose * modelOffset);
 
     // Get the cost of the head model
     glm::mat4 flipMesh = glm::scale(glm::mat4(), glm::vec3(1.0f, -1.0f, -1.0f));
-    glm::mat4 model = convKFusionCoordSystem(mSearchTarget->getTransform()) * flipMesh; // TODO: why is flipMesh required here?
-    float cost = getCost(mSearchTarget, mKFusion->integration, model);
+    glm::mat4 modelMatrix = convKFusionCoordSystem(mSearchTarget->getTransform()) * flipMesh; // TODO: why is flipMesh required here?
+    float cost = getCost(model, mKFusion->integration, modelMatrix);
     cout << cost << endl;
     if (cost < 200.0f)
     {
         // Convert matrix into 6 parameters for the optimiser function
         std::vector<double> parameters;
         parameters.resize(6);
-        CostFunction::mat4ToParameters(model, parameters);
+        CostFunction::mat4ToParameters(modelMatrix, parameters);
         cout << parameters[0] << ", " << parameters[1] << ", " << parameters[2] << ", " << glm::degrees(parameters[3]) << ", " << glm::degrees(parameters[4]) << ", " << glm::degrees(parameters[5]) << endl;
 
         // The cost is low enough, lets optimise it further!
-        mOptimiser.cost_function(std::shared_ptr<CostFunction>(new CostFunction(mSearchTarget, mKFusion->integration, this)));
+        mOptimiser.cost_function(std::shared_ptr<CostFunction>(new CostFunction(model, mKFusion->integration, this)));
         mOptimiser.init_parameters(parameters);
         drop::SimplexOptimizer::Termination term = mOptimiser.run();
         cout << "SimplexOptimizer terminated with code " << term << endl;
@@ -172,7 +175,7 @@ bool KFusionTracker::checkTargetPosition(glm::mat4& resultTransform)
         parameters = mOptimiser.parameters();
         cout << parameters[0] << ", " << parameters[1] << ", " << parameters[2] << ", " << glm::degrees(parameters[3]) << ", " << glm::degrees(parameters[4]) << ", " << glm::degrees(parameters[5]) << endl;
         glm::mat4 location = CostFunction::mat4FromParameters(parameters);
-        cout << "Original Cost: " << cost << endl << "Final cost: " << getCost(mSearchTarget, mKFusion->integration, location) << endl;
+        cout << "Original Cost: " << cost << endl << "Final cost: " << getCost(model, mKFusion->integration, location) << endl;
 
         // Set the result matrix
         resultTransform = convKFusionCoordSystem(location * flipMesh);

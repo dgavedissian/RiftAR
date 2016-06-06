@@ -4,6 +4,7 @@
 
 #include "simplex/DropSimplex.h"
 
+class Entity;
 class Model;
 class RealsenseCamera;
 
@@ -15,7 +16,7 @@ public:
 
     void update(cv::Mat frame);
 
-    void beginSearchingFor(Model* target);
+    void beginSearchingFor(Entity* target);
     bool checkTargetPosition(glm::mat4& resultTransform);
     bool isSearching() const;
 
@@ -62,5 +63,5 @@ private:
     glm::mat4 mCameraPose;
 
     // Searching
-    Model* mSearchTarget; // when this is nullptr, we are not searching for anything
+    Entity* mSearchTarget; // when this is nullptr, we are not searching for anything
 };

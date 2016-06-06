@@ -8,6 +8,6 @@
 class DebugOutput : public OutputContext
 {
 public:
-    void renderScene(RenderContext* ctx) override;
+    void renderScene(Renderer* ctx) override;
 
 };

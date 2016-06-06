@@ -1,7 +1,7 @@
 #include "Common.h"
 #include "DebugOutput.h"
 
-void DebugOutput::renderScene(RenderContext* ctx)
+void DebugOutput::renderScene(Renderer* ctx)
 {
     for (int i = 0; i < 2; i++)
     {

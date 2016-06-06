@@ -1,10 +1,10 @@
 #pragma once
 
-#include "RenderContext.h"
+#include "Renderer.h"
 
 class OutputContext
 {
 public:
     virtual ~OutputContext() {}
-    virtual void renderScene(RenderContext* ctx) = 0;
+    virtual void renderScene(Renderer* ctx) = 0;
 };

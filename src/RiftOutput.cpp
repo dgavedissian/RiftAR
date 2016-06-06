@@ -122,7 +122,7 @@ void RiftOutput::setFramePose(int frameIndex, ovrPosef poses[2])
     mEyePose[1] = poses[1];
 }
 
-void RiftOutput::renderScene(RenderContext* ctx)
+void RiftOutput::renderScene(Renderer* ctx)
 {
     // Get texture swap index where we must draw our frame
     GLuint curTexId;

@@ -6,8 +6,7 @@
 
 Model::Model(const string& filename) :
     mVertexArrayObject(0),
-    mVertexBufferObject(0),
-    mShader(nullptr)
+    mVertexBufferObject(0)
 {
     cout << "Loading STL model: " << filename << endl;
 
@@ -32,40 +31,14 @@ Model::Model(const string& filename) :
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-
-    // Load the shader
-    mShader = new Shader("../media/model.vs", "../media/model.fs");
 }
 
 Model::~Model()
 {
-    if (mShader)
-        delete mShader;
 }
 
-void Model::setPosition(const glm::vec3& position)
+void Model::render()
 {
-    mTransform[3] = glm::vec4(position, 1.0f);
-}
-
-void Model::setOrientation(const glm::quat& orientation)
-{
-    glm::mat3 rotationMatrix = glm::mat3_cast(orientation);
-    mTransform[0] = glm::vec4(rotationMatrix[0], 0.0f);
-    mTransform[1] = glm::vec4(rotationMatrix[1], 0.0f);
-    mTransform[2] = glm::vec4(rotationMatrix[2], 0.0f);
-}
-
-void Model::setTransform(const glm::mat4& transform)
-{
-    mTransform = transform;
-}
-
-void Model::render(const glm::mat4& view, const glm::mat4& projection)
-{
-    mShader->bind();
-    mShader->setUniform("modelViewProjectionMatrix", projection * view * mTransform);
-    mShader->setUniform("modelMatrix", mTransform);
     glBindVertexArray(mVertexArrayObject);
     glDrawArrays(GL_TRIANGLES, 0, mVertexCount);
 }
@@ -89,12 +62,6 @@ glm::vec3 Model::getSize() const
 {
      return mSize;
 }
-
-const glm::mat4& Model::getTransform() const
-{
-    return mTransform;
-}
-
 void Model::load(std::ifstream& in, std::vector<glm::vec3>& vertexData)
 {
     uint32_t triangleCount;

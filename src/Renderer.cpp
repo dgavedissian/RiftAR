@@ -1,15 +1,21 @@
 #include "Common.h"
-#include "RenderContext.h"
+#include "Renderer.h"
 
-#include "lib/Model.h"
+#include "lib/Entity.h"
 #include "lib/Shader.h"
 #include "lib/Rectangle2D.h"
 
-RenderContext::RenderContext(bool invertColour, float znear, float zfar, float depthScale) :
+Renderer::Renderer(bool invertColour, float znear, float zfar, float depthScale) :
     mShowColour(true),
+    mShowModelAfterAlignment(true),
     mZNear(znear),
     mZFar(zfar)
 {
+    // Load models
+    alignmentEntity = Entity::loadModel("../media/meshes/bob-smooth.stl");
+    expandedAlignmentEntity = new Entity(alignmentEntity->getModel(), alignmentEntity->getShader());
+    overlay = Entity::loadModel("../media/meshes/graymatter.stl");
+
     // Create rendering primitives
     mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
     mFullscreenShader = new Shader("../media/quad.vs", "../media/quad.fs");
@@ -27,19 +33,19 @@ RenderContext::RenderContext(bool invertColour, float znear, float zfar, float d
     mFullscreenWithDepthShader->setUniform("depthScale", depthScale);
 }
 
-RenderContext::~RenderContext()
+Renderer::~Renderer()
 {
     delete mQuad;
     delete mFullscreenShader;
     delete mFullscreenWithDepthShader;
 }
 
-void RenderContext::setViewport(cv::Point pos, cv::Size size)
+void Renderer::setViewport(cv::Point pos, cv::Size size)
 {
     glViewport(pos.x, pos.y, size.width, size.height);
 }
 
-void RenderContext::renderScene(int eye)
+void Renderer::renderScene(int eye)
 {
     glm::mat4 thisView = eyeMatrix[eye] * view;
 
@@ -59,7 +65,7 @@ void RenderContext::renderScene(int eye)
         // Overlay stuff
         if (lookingForHead) // Render "guiding" model
         {
-            alignmentModel->render(thisView, projection);
+            alignmentEntity->render(thisView, projection);
         }
         else if (foundTransform) // Render overlays
         {
@@ -75,7 +81,7 @@ void RenderContext::renderScene(int eye)
             // depth test also passes
             glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
             glClear(GL_STENCIL_BUFFER_BIT);
-            expandedAlignmentModel->render(thisView, projection);
+            expandedAlignmentEntity->render(thisView, projection);
 
             // Enable colour and depth writing, and disable writing to the stencil buffer
             glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -89,7 +95,12 @@ void RenderContext::renderScene(int eye)
             glStencilFunc(GL_EQUAL, 1, 0xFF);
 
             // Render overlay
-            model->render(thisView, projection);
+            overlay->render(thisView, projection);
+
+            // Disable depth write and draw the model as a "frame"
+            glDepthMask(GL_FALSE);
+            //frameModel->render(thisView, projection);
+            glDepthMask(GL_TRUE);
 
             // Disable stencil function
             glStencilFunc(GL_ALWAYS, 1, 0xFF);

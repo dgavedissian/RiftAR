@@ -122,7 +122,7 @@ void RiftOutput::setFramePose(int frameIndex, ovrPosef poses[2])
     mEyePose[1] = poses[1];
 }
 
-void RiftOutput::renderScene(Renderer* ctx)
+void RiftOutput::renderScene(Renderer* ctx, int hit)
 {
     // Get texture swap index where we must draw our frame
     GLuint curTexId;
@@ -142,7 +142,8 @@ void RiftOutput::renderScene(Renderer* ctx)
     // Render for each Oculus eye the equivalent ZED image
     for (int i = 0; i < 2; i++)
     {
-        cv::Vec2i viewportPosition(i == ovrEye_Left ? 0 : mBufferSize.w / 2, 0);
+        int hitFactor = i == 0 ? hit : -hit;
+        cv::Vec2i viewportPosition(i == ovrEye_Left ? hitFactor : mBufferSize.w / 2 + hitFactor, 0);
         cv::Size viewportSize(mBufferSize.w / 2, mBufferSize.h);
         cv::Vec2i viewportMid = viewportPosition + cv::Vec2i(viewportSize.width, viewportSize.height) / 2;
         ctx->setViewport(viewportMid - cv::Vec2i(mFrameSize.width, mFrameSize.height) / 2, mFrameSize);

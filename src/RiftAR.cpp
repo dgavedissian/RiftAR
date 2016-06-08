@@ -11,10 +11,12 @@
 
 #include "RiftAR.h"
 
-//#define RIFT_DISPLAY
-//#define ENABLE_ZED
+#define RIFT_DISPLAY
+#define ENABLE_ZED
 
 DEFINE_MAIN(RiftAR);
+
+float focalDepth = 1.5f;
 
 RiftAR::RiftAR() :
     mAddArtificalLatency(false)
@@ -134,8 +136,19 @@ void RiftAR::render()
     // Warp depth textures for occlusion
     mRealsenseDepth->warpToPair(mDepthFrame, mZedCalib, mRenderCtx->eyeMatrix[0], mRenderCtx->eyeMatrix[1]);
 
+    // calculate HIT based on focal depth
+#ifdef ENABLE_ZED
+    float baseline = mZed->getBaseline();
+    float convergence = mZed->getConvergence();
+    float focalPoint = baseline / (2.0f * tan(convergence * 0.5f));
+    float d = baseline * (1.0f - focalPoint / focalDepth);
+    CameraIntrinsics& intr = mZed->getIntrinsics(ZEDCamera::LEFT);
+    float hit = intr.cameraMatrix.at<double>(0, 0) * d;
+    cout << focalPoint << "/" << focalDepth << " - " << d << " - " << hit << endl;
+#endif
+
     // Render scene
-    mOutputCtx->renderScene(mRenderCtx);
+    mOutputCtx->renderScene(mRenderCtx, (int)hit);
 }
 
 void RiftAR::keyEvent(int key, int scancode, int action, int mods)
@@ -163,6 +176,14 @@ void RiftAR::keyEvent(int key, int scancode, int action, int mods)
             mAddArtificalLatency = !mAddArtificalLatency;
         }
     }
+}
+
+void RiftAR::scrollEvent(double x, double y)
+{
+    // Add 10cm per increment
+    focalDepth += (float)y * 0.1f;
+    if (focalDepth < 0.1f)
+        focalDepth = 0.1f;
 }
 
 cv::Size RiftAR::getSize()

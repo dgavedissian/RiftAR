@@ -19,6 +19,9 @@ ZEDCamera::ZEDCamera(sl::zed::ZEDResolution_mode resolution, int fps)
     mIntrinsics.cameraMatrix.at<double>(1, 2) = left.cy;
     mIntrinsics.coeffs.insert(mIntrinsics.coeffs.end(), left.disto, left.disto + 5);
 
+    mBaseline = params->baseline * 0.001f;
+    mConvergence = params->convergence;
+
     // Image size
     mIntrinsics.width = mCamera->getImageSize().width;
     mIntrinsics.height = mCamera->getImageSize().height;
@@ -34,7 +37,7 @@ ZEDCamera::ZEDCamera(sl::zed::ZEDResolution_mode resolution, int fps)
         CUDA_CHECK(cudaMalloc(&mStreamData[0], mIntrinsics.width * mIntrinsics.height * 4));
         CUDA_CHECK(cudaMalloc(&mStreamData[1], mIntrinsics.width * mIntrinsics.height * 4));
 
-        // Initialise OpenGL texture
+        // Initialise OpenGL textures
         glGenTextures(1, &mTexture[eye]);
         glBindTexture(GL_TEXTURE_2D, mTexture[eye]);
         GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mIntrinsics.width, mIntrinsics.height, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
@@ -122,6 +125,16 @@ GLuint ZEDCamera::getTexture(uint camera) const
     if (camera > 1)
         THROW_ERROR("Camera must be ZEDCamera::LEFT or ZEDCamera::Right");
     return mTexture[camera];
+}
+
+float ZEDCamera::getBaseline() const
+{
+    return mBaseline;
+}
+
+float ZEDCamera::getConvergence() const
+{
+    return mConvergence;
 }
 
 sl::zed::SIDE ZEDCamera::mapCameraToSide(uint camera) const

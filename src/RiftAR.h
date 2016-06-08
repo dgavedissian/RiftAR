@@ -22,6 +22,7 @@ public:
     void init() override;
     void render() override;
     void keyEvent(int key, int scancode, int action, int mods) override;
+    void scrollEvent(double x, double y) override;
     cv::Size getSize() override;
 
 private:

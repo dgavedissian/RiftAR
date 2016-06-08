@@ -27,6 +27,9 @@ public:
     glm::mat4 getExtrinsics(uint camera1, uint camera2) const override;
     GLuint getTexture(uint camera) const override;
 
+    float getBaseline() const;
+    float getConvergence() const;
+
 private:
     sl::zed::Camera* mCamera;
     GLuint mTexture[2];
@@ -34,6 +37,9 @@ private:
     uchar* mStreamData[2];
 
     CameraIntrinsics mIntrinsics;
+
+    float mBaseline;
+    float mConvergence;
 
     sl::zed::SIDE mapCameraToSide(uint camera) const;
 };

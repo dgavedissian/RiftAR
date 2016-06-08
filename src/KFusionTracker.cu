@@ -6,7 +6,7 @@
 
 #include <TooN/se3.h>
 
-#define KFUSION_DEBUG
+//#define KFUSION_DEBUG
 
 #ifdef KFUSION_DEBUG
 #include <kfusion/helpers.h>

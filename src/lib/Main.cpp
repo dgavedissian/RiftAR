@@ -1,12 +1,5 @@
 #include "Common.h"
 
-App* App::msCurrentApp = nullptr;
-
-void App::glfwKeyEvent(GLFWwindow*, int key, int scancode, int action, int mods)
-{
-    msCurrentApp->keyEvent(key, scancode, action, mods);
-}
-
 int runApp(int argc, char** argv, App* app)
 {
     try
@@ -31,6 +24,8 @@ int runApp(int argc, char** argv, App* app)
         double lastTime = 0;
         int numberOfFrames = 0;
         glfwSetKeyCallback(window, App::glfwKeyEvent);
+        glfwSetMouseButtonCallback(window, App::glfwMouseButtonEvent);
+        glfwSetScrollCallback(window, App::glfwScrollEvent);
         while (!glfwWindowShouldClose(window))
         {
             // Render

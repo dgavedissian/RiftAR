@@ -56,6 +56,7 @@ set(FRAMEWORK_HDR
     src/lib/Utils.h)
 set(FRAMEWORK_SRC
     3rdparty/gl3w.c
+    src/lib/App.cpp
     src/lib/Main.cpp
 	src/lib/Entity.cpp
 	src/lib/Model.cpp

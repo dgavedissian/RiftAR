@@ -142,7 +142,7 @@ void RiftOutput::renderScene(Renderer* ctx, int hit)
     // Render for each Oculus eye the equivalent ZED image
     for (int i = 0; i < 2; i++)
     {
-        int hitFactor = i == 0 ? hit : -hit;
+        int hitFactor = i == 0 ? hit / 2 : -hit / 2;
         cv::Vec2i viewportPosition(i == ovrEye_Left ? hitFactor : mBufferSize.w / 2 + hitFactor, 0);
         cv::Size viewportSize(mBufferSize.w / 2, mBufferSize.h);
         cv::Vec2i viewportMid = viewportPosition + cv::Vec2i(viewportSize.width, viewportSize.height) / 2;

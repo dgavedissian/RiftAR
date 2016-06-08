@@ -13,6 +13,7 @@
 
 #define RIFT_DISPLAY
 #define ENABLE_ZED
+//#define DEBUG_FIND_OBJECT
 
 DEFINE_MAIN(RiftAR);
 
@@ -108,6 +109,111 @@ RiftAR::~RiftAR()
     delete mOutputCtx;
 }
 
+#include <tuple>
+
+void findCurves(const std::vector<int>& histogram, std::vector<std::tuple<int, int, int>>& curves)
+{
+    bool inCurve = false;
+    int start;
+    int size;
+    for (int i = 0; i < histogram.size(); i++)
+    {
+        // Attempt to find the start of a curve
+        if (!inCurve)
+        {
+            if (histogram[i] > 0)
+            {
+                inCurve = true;
+                start = i;
+                size = histogram[i];
+            }
+        }
+        else // Attempt to find the end of the curve
+        {
+            size += histogram[i];
+            if (i == (histogram.size() - 1) || histogram[i + 1] == 0) // short circuiting will prevent array out of bounds
+            {
+                inCurve = false;
+                curves.push_back(std::make_tuple(start, i, size));
+            }
+        }
+    }
+}
+
+bool findObject(cv::Mat image, float depthScale, float& objectDistance)
+{
+    // Set up a histogram
+    std::vector<int> counts;
+    const int CLASS_COUNT = 20;
+    counts.resize(CLASS_COUNT);
+
+    // Map pixel to class number
+    for (int r = 0; r < image.rows; r++)
+    {
+        for (int c = 0; c < image.cols; c++)
+        {
+            uint16_t rawDepth = image.at<uint16_t>(r, c);
+
+            // Ignore indeterminate values
+            if (rawDepth == 0)
+                continue;
+
+            // Convert raw depth into 0-1 range
+            float rawDepthScaled = (float)rawDepth / (float)0xffff;
+            counts[(int)(rawDepthScaled * CLASS_COUNT)]++;
+        }
+    }
+
+#ifdef DEBUG_FIND_OBJECT
+    // Display histogram for debugging
+    for (int c : counts)
+        cout << c << ", " << endl;
+    cout << endl;
+#endif
+
+    // Extract curves in form min, max (inclusive), area
+    std::vector<std::tuple<int, int, int>> curves;
+    findCurves(counts, curves);
+
+    // If there are no curves, then there are no depth values
+    if (curves.empty())
+        return false;
+
+    // Find the largest curve by area
+    auto largestCurve = curves.begin();
+    for (auto it = curves.begin(); it != curves.end(); it++)
+    {
+        if (std::get<2>(*it) > std::get<2>(*largestCurve))
+            largestCurve = it;
+    }
+
+    // Find average of all points between the start and end of the first curve
+    float sum = 0.0f;
+    for (int r = 0; r < image.rows; r++)
+    {
+        for (int c = 0; c < image.cols; c++)
+        {
+            uint16_t rawDepth = image.at<uint16_t>(r, c);
+
+            // Ignore indeterminate values
+            if (rawDepth == 0)
+                continue;
+
+            // Convert raw depth into class
+            float rawDepthScaled = (float)rawDepth / (float)0xffff;
+            int depthClass = (int)(rawDepthScaled * CLASS_COUNT);
+
+            // If class is within range defined above, consider it
+            if (depthClass >= std::get<0>(*largestCurve) && depthClass <= std::get<1>(*largestCurve))
+                sum += rawDepth * depthScale;
+        }
+    }
+
+    // Return average
+    objectDistance = sum / std::get<2>(*largestCurve);
+    return true;
+}
+
 void RiftAR::render()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -136,16 +242,24 @@ void RiftAR::render()
     // Warp depth textures for occlusion
     mRealsenseDepth->warpToPair(mDepthFrame, mZedCalib, mRenderCtx->eyeMatrix[0], mRenderCtx->eyeMatrix[1]);
 
-    // calculate HIT based on focal depth
+    // Find centre object
+    cv::Size2i regionSize(64, 64);
+    cv::Rect region((mDepthFrame.cols - regionSize.width) / 2, (mDepthFrame.rows - regionSize.height) / 2, regionSize.width, regionSize.height);
+    float hit = 0.0f;
+    bool found = findObject(mDepthFrame(region), mRealsense->getDepthScale(), focalDepth);
+    if (found)
+    {
 #ifdef ENABLE_ZED
-    float baseline = mZed->getBaseline();
-    float convergence = mZed->getConvergence();
-    float focalPoint = baseline / (2.0f * tan(convergence * 0.5f));
-    float d = baseline * (1.0f - focalPoint / focalDepth);
-    CameraIntrinsics& intr = mZed->getIntrinsics(ZEDCamera::LEFT);
-    float hit = intr.cameraMatrix.at<double>(0, 0) * d;
-    cout << focalPoint << "/" << focalDepth << " - " << d << " - " << hit << endl;
+        // Calculate HIT based on focal depth
+        float baseline = mZed->getBaseline();
+        float convergence = mZed->getConvergence();
+        float focalPoint = baseline / (2.0f * tan(convergence * 0.5f));
+        float d = baseline * (1.0f - focalPoint / focalDepth);
+        CameraIntrinsics& intr = mZed->getIntrinsics(ZEDCamera::LEFT);
+        hit = intr.cameraMatrix.at<double>(0, 0) * d / focalPoint;
+        cout << focalPoint << "/" << focalDepth << " - " << d << " - " << hit << endl;
 #endif
+    }
 
     // Render scene
     mOutputCtx->renderScene(mRenderCtx, (int)hit);
@@ -180,10 +294,6 @@ void RiftAR::keyEvent(int key, int scancode, int action, int mods)
 
 void RiftAR::scrollEvent(double x, double y)
 {
-    // Add 10cm per increment
-    focalDepth += (float)y * 0.1f;
-    if (focalDepth < 0.1f)
-        focalDepth = 0.1f;
 }
 
 cv::Size RiftAR::getSize()

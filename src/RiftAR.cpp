@@ -20,7 +20,8 @@ DEFINE_MAIN(RiftAR);
 float focalDepth = 1.5f;
 
 RiftAR::RiftAR() :
-    mAddArtificalLatency(false)
+    mAddArtificalLatency(false),
+    mFrameIndex(0)
 {
 }
 

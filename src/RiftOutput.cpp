@@ -110,7 +110,7 @@ void RiftOutput::newFrame(int& frameIndex, ovrPosef poses[2])
     frameIndex++;
 
     // Get eye poses, feeding in correct IPD offset
-    double frameTiming = ovr_GetPredictedDisplayTime(mSession, mFrameIndex);
+    double frameTiming = ovr_GetPredictedDisplayTime(mSession, frameIndex);
     ovrTrackingState state = ovr_GetTrackingState(mSession, frameTiming, ovrTrue);
     ovr_CalcEyePoses(state.HeadPose.ThePose, mHmdToEyeOffset, poses);
 }

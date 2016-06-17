@@ -272,12 +272,22 @@ void RiftAR::keyEvent(int key, int scancode, int action, int mods)
 {
     if (action == GLFW_PRESS)
     {
-        if (key == GLFW_KEY_SPACE)
+        if (key == GLFW_KEY_Q)
+        {
+            mRenderer->setState(RS_COLOUR);
+        }
+
+        if (key == GLFW_KEY_W)
+        {
+            mRenderer->setState(RS_DEBUG_DEPTH);
+        }
+
+        if (key == GLFW_KEY_E)
         {
             mRenderer->setState(RS_DEBUG_KFUSION);
         }
 
-        if (key == GLFW_KEY_S)
+        if (key == GLFW_KEY_SPACE)
         {
             mTracking->beginSearchingFor(mRenderer->alignmentEntity);
             mRenderer->lookingForHead = true;

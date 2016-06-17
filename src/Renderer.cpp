@@ -1,8 +1,9 @@
-#include "Common.h"
+﻿#include "Common.h"
 #include "Renderer.h"
 #include "KFusionTracker.h"
 
 #include "lib/Entity.h"
+#include "lib/Model.h"
 #include "lib/Shader.h"
 #include "lib/Rectangle2D.h"
 #include "lib/TextureCV.h"
@@ -16,18 +17,17 @@ Renderer::Renderer(bool invertColour, float znear, float zfar, float depthScale,
 {
     // Load models
     alignmentEntity = Entity::loadModel("../media/meshes/bob-smooth.stl");
+    alignmentEntity->getShader()->setUniform("diffuseColour", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
     expandedAlignmentEntity = new Entity(alignmentEntity->getModel(), alignmentEntity->getShader());
-    overlay = Entity::loadModel("../media/meshes/graymatter.stl");
+    overlay = new Entity(new Model("../media/meshes/graymatter.stl"), alignmentEntity->getShader());
 
     // Create rendering primitives
     mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
     mFullscreenShader = new Shader("../media/quad.vs", "../media/quad.fs");
-    mFullscreenShader->bind();
     mFullscreenShader->setUniform("invertColour", invertColour);
 
     // Create objects
     mFullscreenWithDepthShader = new Shader("../media/quad.vs", "../media/quad_depth.fs");
-    mFullscreenWithDepthShader->bind();
     mFullscreenWithDepthShader->setUniform("invertColour", invertColour);
     mFullscreenWithDepthShader->setUniform("rgbCameraImage", 0);
     mFullscreenWithDepthShader->setUniform("depthCameraImage", 1);
@@ -100,13 +100,19 @@ void Renderer::renderScene(int eye)
             // Render overlay
             overlay->render(thisView, projection);
 
-            // Disable depth write and draw the model as a "frame"
-            glDepthMask(GL_FALSE);
-            //frameModel->render(thisView, projection);
-            glDepthMask(GL_TRUE);
-
             // Disable stencil function
             glStencilFunc(GL_ALWAYS, 1, 0xFF);
+
+            // Clear the depth buffer
+            glClear(GL_DEPTH_BUFFER_BIT);
+
+            // Draw the model as a "frame"
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            alignmentEntity->getShader()->setUniform("diffuseColour", glm::vec4(0.4f, 0.8f, 0.4f, 0.2f));
+            alignmentEntity->render(thisView, projection);
+            alignmentEntity->getShader()->setUniform("diffuseColour", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+            glDisable(GL_BLEND);
         }
     }
     else if (mState == RS_DEBUG_DEPTH)

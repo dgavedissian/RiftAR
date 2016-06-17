@@ -1,15 +1,18 @@
 #include "Common.h"
 #include "Renderer.h"
+#include "KFusionTracker.h"
 
 #include "lib/Entity.h"
 #include "lib/Shader.h"
 #include "lib/Rectangle2D.h"
+#include "lib/TextureCV.h"
 
-Renderer::Renderer(bool invertColour, float znear, float zfar, float depthScale) :
-    mShowColour(true),
+Renderer::Renderer(bool invertColour, float znear, float zfar, float depthScale, KFusionTracker* tracker) :
+    mState(RS_COLOUR),
     mShowModelAfterAlignment(true),
     mZNear(znear),
-    mZFar(zfar)
+    mZFar(zfar),
+    mTracker(tracker)
 {
     // Load models
     alignmentEntity = Entity::loadModel("../media/meshes/bob-smooth.stl");
@@ -49,7 +52,7 @@ void Renderer::renderScene(int eye)
 {
     glm::mat4 thisView = eyeMatrix[eye] * view;
 
-    if (mShowColour)
+    if (mState == RS_COLOUR)
     {
         // Render captured frame from the cameras
         glActiveTexture(GL_TEXTURE0);
@@ -106,11 +109,25 @@ void Renderer::renderScene(int eye)
             glStencilFunc(GL_ALWAYS, 1, 0xFF);
         }
     }
-    else
+    else if (mState == RS_DEBUG_DEPTH)
     {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, depthTextures[eye]);
         mFullscreenShader->bind();
         mQuad->render();
     }
+    else if (mState == RS_DEBUG_KFUSION)
+    {
+        mTracker->getCurrentView(mTrackerDebug.getCVMat());
+        mTrackerDebug.update();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, mTrackerDebug.getGLTexture());
+        mFullscreenShader->bind();
+        mQuad->render();
+    }
+}
+
+void Renderer::setState(RendererState rs)
+{
+    mState = rs;
 }

@@ -14,7 +14,7 @@ public:
     KFusionTracker(RealsenseCamera* camera);
     ~KFusionTracker();
 
-    void update(cv::Mat frame);
+    bool update(cv::Mat frame);
 
     void beginSearchingFor(Entity* target);
     bool checkTargetPosition(glm::mat4& resultTransform);
@@ -23,6 +23,8 @@ public:
     void reset();
 
     glm::mat4 getCameraPose() const;
+
+    void getCurrentView(cv::Mat& mat);
 
 private:
     float getCost(Model* model, Volume volume, const glm::mat4& transform);
@@ -64,4 +66,7 @@ private:
 
     // Searching
     Entity* mSearchTarget; // when this is nullptr, we are not searching for anything
+
+    // Debug Image
+    Image<uchar4, HostDevice> mLightModel;
 };

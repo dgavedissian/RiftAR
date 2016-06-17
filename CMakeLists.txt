@@ -52,6 +52,7 @@ set(FRAMEWORK_HDR
 	src/lib/Model.h
     src/lib/Rectangle2D.h
     src/lib/Shader.h
+    src/lib/TextureCV.h
     src/lib/Timer.h
     src/lib/Utils.h)
 set(FRAMEWORK_SRC
@@ -62,6 +63,7 @@ set(FRAMEWORK_SRC
 	src/lib/Model.cpp
     src/lib/Rectangle2D.cpp
     src/lib/Shader.cpp
+    src/lib/TextureCV.cpp
     src/lib/Timer.cpp)
 add_library(Framework STATIC ${FRAMEWORK_SRC} ${FRAMEWORK_HDR})
 target_link_libraries(Framework ${LIBS})

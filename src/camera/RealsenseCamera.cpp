@@ -31,7 +31,7 @@ RealsenseCamera::RealsenseCamera(uint width, uint height, uint frameRate, uint s
         // Initialise texture
         glGenTextures(1, &mStreamTextures[0]);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[0]);
-        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
@@ -39,7 +39,7 @@ RealsenseCamera::RealsenseCamera(uint width, uint height, uint frameRate, uint s
     {
         glGenTextures(1, &mStreamTextures[1]);
         glBindTexture(GL_TEXTURE_2D, mStreamTextures[1]);
-        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, width, height, 0, GL_RED, GL_UNSIGNED_SHORT, nullptr));
+        GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, width, height, 0, GL_RED, GL_UNSIGNED_SHORT, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }

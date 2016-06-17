@@ -3,6 +3,8 @@
 #include "lib/Rectangle2D.h"
 #include "lib/Entity.h"
 #include "lib/Shader.h"
+#include "lib/Timer.h"
+#include "lib/TextureCV.h"
 
 #include "RiftOutput.h"
 #include "DebugOutput.h"
@@ -11,8 +13,8 @@
 
 #include "RiftAR.h"
 
-#define RIFT_DISPLAY
-#define ENABLE_ZED
+//#define RIFT_DISPLAY
+//#define ENABLE_ZED
 //#define DEBUG_FIND_OBJECT
 
 DEFINE_MAIN(RiftAR);
@@ -47,27 +49,27 @@ void RiftAR::init()
     destinationSize.height = mRealsense->getHeight(RealsenseCamera::COLOUR);
 #endif
 
-    // Set up scene
-    mRenderCtx = new Renderer(invertColours, 0.01f, 10.0f, USHRT_MAX * mRealsense->getDepthScale());
-    mRenderCtx->lookingForHead = false;
-    mRenderCtx->foundTransform = false;
-    mRenderCtx->backbufferSize = getSize();
-
     // Initialise tracking system
     mTracking = new KFusionTracker(mRealsense);
+
+    // Set up scene
+    mRenderer = new Renderer(invertColours, 0.01f, 10.0f, USHRT_MAX * mRealsense->getDepthScale(), mTracking);
+    mRenderer->lookingForHead = false;
+    mRenderer->foundTransform = false;
+    mRenderer->backbufferSize = getSize();
 
     // Set up depth warping
     setupDepthWarpStream(destinationSize);
 
     // Set up output
 #ifdef ENABLE_ZED
-    mRenderCtx->colourTextures[0] = mZed->getTexture(ZEDCamera::LEFT);
-    mRenderCtx->colourTextures[1] = mZed->getTexture(ZEDCamera::RIGHT);
-    mRenderCtx->projection = mZed->getIntrinsics(ZEDCamera::LEFT).buildGLProjection(mRenderCtx->mZNear, mRenderCtx->mZFar);
+    mRenderer->colourTextures[0] = mZed->getTexture(ZEDCamera::LEFT);
+    mRenderer->colourTextures[1] = mZed->getTexture(ZEDCamera::RIGHT);
+    mRenderer->projection = mZed->getIntrinsics(ZEDCamera::LEFT).buildGLProjection(mRenderer->mZNear, mRenderer->mZFar);
 #else
-    mRenderCtx->colourTextures[0] = mRealsense->getTexture(RealsenseCamera::COLOUR);
-    mRenderCtx->colourTextures[1] = mRealsense->getTexture(RealsenseCamera::COLOUR);
-    mRenderCtx->projection = mRealsense->getIntrinsics(RealsenseCamera::COLOUR).buildGLProjection(mRenderCtx->mZNear, mRenderCtx->mZFar);
+    mRenderer->colourTextures[0] = mRealsense->getTexture(RealsenseCamera::COLOUR);
+    mRenderer->colourTextures[1] = mRealsense->getTexture(RealsenseCamera::COLOUR);
+    mRenderer->projection = mRealsense->getIntrinsics(RealsenseCamera::COLOUR).buildGLProjection(mRenderer->mZNear, mRenderer->mZFar);
 #endif
 
 #ifdef RIFT_DISPLAY
@@ -98,7 +100,7 @@ RiftAR::~RiftAR()
     mIsCapturing = false;
     mCaptureThread.join();
 
-    delete mRenderCtx;
+    delete mRenderer;
 
     delete mTracking;
 
@@ -228,20 +230,20 @@ void RiftAR::render()
 
     // Update the cameras pose
     mTracking->update(mDepthFrame);
-    mRenderCtx->view = glm::inverse(mTracking->getCameraPose());
+    mRenderer->view = glm::inverse(mTracking->getCameraPose());
 
     // Search for the head
-    if (mTracking->checkTargetPosition(mRenderCtx->headTransform))
+    if (mTracking->checkTargetPosition(mRenderer->headTransform))
     {
-        mRenderCtx->lookingForHead = false;
-        mRenderCtx->foundTransform = true;
-        mRenderCtx->alignmentEntity->setTransform(mRenderCtx->headTransform);
-        mRenderCtx->expandedAlignmentEntity->setTransform(mRenderCtx->headTransform * glm::scale(glm::mat4(), glm::vec3(1.1f, 1.1f, 1.1f)));
-        mRenderCtx->overlay->setTransform(mRenderCtx->headTransform);
+        mRenderer->lookingForHead = false;
+        mRenderer->foundTransform = true;
+        mRenderer->alignmentEntity->setTransform(mRenderer->headTransform);
+        mRenderer->expandedAlignmentEntity->setTransform(mRenderer->headTransform * glm::scale(glm::mat4(), glm::vec3(1.1f, 1.1f, 1.1f)));
+        mRenderer->overlay->setTransform(mRenderer->headTransform);
     }
 
     // Warp depth textures for occlusion
-    mRealsenseDepth->warpToPair(mDepthFrame, mZedCalib, mRenderCtx->eyeMatrix[0], mRenderCtx->eyeMatrix[1]);
+    mRealsenseDepth->warpToPair(mDepthFrame, mZedCalib, mRenderer->eyeMatrix[0], mRenderer->eyeMatrix[1]);
 
     // Find centre object
     cv::Size2i regionSize(64, 64);
@@ -263,7 +265,7 @@ void RiftAR::render()
     }
 
     // Render scene
-    mOutputCtx->renderScene(mRenderCtx, (int)hit);
+    mOutputCtx->renderScene(mRenderer, (int)hit);
 }
 
 void RiftAR::keyEvent(int key, int scancode, int action, int mods)
@@ -272,13 +274,13 @@ void RiftAR::keyEvent(int key, int scancode, int action, int mods)
     {
         if (key == GLFW_KEY_SPACE)
         {
-            mRenderCtx->toggleDebug();
+            mRenderer->setState(RS_DEBUG_KFUSION);
         }
 
         if (key == GLFW_KEY_S)
         {
-            mTracking->beginSearchingFor(mRenderCtx->alignmentEntity);
-            mRenderCtx->lookingForHead = true;
+            mTracking->beginSearchingFor(mRenderer->alignmentEntity);
+            mRenderer->lookingForHead = true;
         }
 
         if (key == GLFW_KEY_R)
@@ -306,8 +308,8 @@ cv::Size RiftAR::getSize()
 void RiftAR::setupDepthWarpStream(cv::Size destinationSize)
 {
     mRealsenseDepth = new RealsenseDepthAdjuster(mRealsense, destinationSize);
-    mRenderCtx->depthTextures[0] = mRealsenseDepth->getDepthTexture(0);
-    mRenderCtx->depthTextures[1] = mRealsenseDepth->getDepthTexture(1);
+    mRenderer->depthTextures[0] = mRealsenseDepth->getDepthTexture(0);
+    mRenderer->depthTextures[1] = mRealsenseDepth->getDepthTexture(1);
 
     // Read parameters
 #ifdef ENABLE_ZED
@@ -337,10 +339,10 @@ void RiftAR::setupDepthWarpStream(cv::Size destinationSize)
     mRealsenseToZedLeft = realsenseColourToZedLeft * depthToColour;
 
 #ifdef ENABLE_ZED
-    mRenderCtx->eyeMatrix[0] = mRealsenseToZedLeft;
-    mRenderCtx->eyeMatrix[1] = mZed->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT) * mRealsenseToZedLeft;
+    mRenderer->eyeMatrix[0] = mRealsenseToZedLeft;
+    mRenderer->eyeMatrix[1] = mZed->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT) * mRealsenseToZedLeft;
 #else
-    mRenderCtx->eyeMatrix[0] = mRenderCtx->eyeMatrix[1] = mRealsenseToZedLeft;
+    mRenderer->eyeMatrix[0] = mRenderer->eyeMatrix[1] = mRealsenseToZedLeft;
 #endif
 }
 

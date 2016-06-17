@@ -1,31 +1,41 @@
 #pragma once
 
+#include "lib/TextureCV.h"
+
 class Entity;
 class Shader;
 class Rectangle2D;
+class KFusionTracker;
 
 // TODO:
 // - Write helper functions to make construction convenient
 // - Make members private
 
+enum RendererState
+{
+    RS_COLOUR,
+    RS_DEBUG_DEPTH,
+    RS_DEBUG_KFUSION
+};
+
 class Renderer
 {
 public:
-    Renderer(bool invertColour, float znear, float zfar, float depthScale);
+    Renderer(bool invertColour, float znear, float zfar, float depthScale, KFusionTracker* tracker);
     ~Renderer();
 
     void setViewport(cv::Point pos, cv::Size size);
     void renderScene(int eye);
 
-    // Toggles
-    void toggleDebug() { mShowColour = !mShowColour; }
+    void setState(RendererState rs);
+
     void toggleModel() { mShowModelAfterAlignment = !mShowModelAfterAlignment; }
 
 //private:
     cv::Size backbufferSize;
 
     // Configuration
-    bool mShowColour;
+    RendererState mState;
     bool mShowModelAfterAlignment;
 
     // Camera inputs
@@ -51,4 +61,8 @@ public:
 
     // Extrinsics
     glm::mat4 eyeMatrix[2];
+
+    // Debugging
+    KFusionTracker* mTracker;
+    TextureCV mTrackerDebug;
 };

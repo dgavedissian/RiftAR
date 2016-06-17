@@ -6,16 +6,7 @@
 
 #include <TooN/se3.h>
 
-//#define KFUSION_DEBUG
-
-#ifdef KFUSION_DEBUG
 #include <kfusion/helpers.h>
-#include <opencv2/highgui/highgui.hpp>
-
-static Image<uchar4, HostDevice> lightModel;
-const float3 light = make_float3(1, 1, -1.0);
-const float3 ambient = make_float3(0.1, 0.1, 0.1);
-#endif
 
 // Helper functions
 inline Matrix4 glmToKFusion(const glm::mat4& mat)
@@ -89,10 +80,7 @@ KFusionTracker::KFusionTracker(RealsenseCamera* camera) :
     mKFusion->Init(config);
     mKFusion->setPose(glmToKFusion(glm::translate(glm::mat4(), glm::vec3(size * 0.5f, size * 0.5f, 0.0f))));
     mDepthImage.alloc(make_uint2(intr.width, intr.height));
-
-#ifdef KFUSION_DEBUG
-    lightModel.alloc(make_uint2(intr.width, intr.height));
-#endif
+    mLightModel.alloc(make_uint2(intr.width, intr.height));
 
     mIsInitialising = true;
     mFrameCounter = 0;
@@ -102,7 +90,7 @@ KFusionTracker::~KFusionTracker()
 {
 }
 
-void KFusionTracker::update(cv::Mat frame)
+bool KFusionTracker::update(cv::Mat frame)
 {
     // Give KFusion the depth data. It must be a uint16 in mm
     memcpy(mDepthImage.data(), frame.data, sizeof(uint16_t) * frame.total());
@@ -128,12 +116,7 @@ void KFusionTracker::update(cv::Mat frame)
     // Display integration state
     //cout << shouldIntegrate << " - " << toString(mCameraPose[3]) << endl;
 
-    // Display KFusion state
-#ifdef KFUSION_DEBUG
-    renderLight(lightModel.getDeviceImage(), mKFusion->vertex, mKFusion->normal, light, ambient);
-    CUDA_CHECK(cudaDeviceSynchronize());
-    cv::imshow("KFusion Debug", cv::Mat(cv::Size2i(lightModel.size.x, lightModel.size.y), CV_8UC4, lightModel.data()));
-#endif
+    return shouldIntegrate;
 }
 
 void KFusionTracker::beginSearchingFor(Entity* target)
@@ -203,6 +186,16 @@ void KFusionTracker::reset()
 glm::mat4 KFusionTracker::getCameraPose() const
 {
     return mCameraPose;
+}
+
+void KFusionTracker::getCurrentView(cv::Mat& mat)
+{
+    const float3 light = make_float3(1, 1, -1.0);
+    const float3 ambient = make_float3(0.1, 0.1, 0.1);
+    renderLight(mLightModel.getDeviceImage(), mKFusion->vertex, mKFusion->normal, light, ambient);
+    CUDA_CHECK(cudaDeviceSynchronize());
+    cv::Mat debugImage = cv::Mat(cv::Size2i(mLightModel.size.x, mLightModel.size.y), CV_8UC4, mLightModel.data());
+    debugImage.copyTo(mat);
 }
 
 __global__ void getCostForEachVertex(float* costs, float3* vertexData, int vertexCount, Volume volume, Matrix4 transform)

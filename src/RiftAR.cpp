@@ -328,16 +328,15 @@ void RiftAR::setupDepthWarpStream(cv::Size destinationSize)
     mZedCalib = convertCVToMat3<double>(mRealsense->getIntrinsics(RealsenseCamera::COLOUR).cameraMatrix);
 #endif
 
-    // Read extrinsics parameters that map the ZED to the realsense colour camera, and invert
-    // to map in the opposite direction
+    // Read extrinsics parameters that map the realsense colour camera to the ZED
 #ifdef ENABLE_ZED
     cv::FileStorage fs("../stereo-params.xml", cv::FileStorage::READ);
     cv::Mat rotationMatrix, translation;
     fs["R"] >> rotationMatrix;
     fs["T"] >> translation;
-    glm::mat4 realsenseColourToZedLeft = glm::inverse(buildExtrinsic(
+    glm::mat4 realsenseColourToZedLeft = buildExtrinsic(
         convertCVToMat3<double>(rotationMatrix),
-        convertCVToVec3<double>(translation)));
+        convertCVToVec3<double>(translation));
 #else
     glm::mat4 realsenseColourToZedLeft; // identity
 #endif

@@ -15,20 +15,20 @@ public:
 
     void init() override
     {
-        mZed = new ZEDCamera(sl::zed::HD720, 60);
+        mZed = new ZEDCamera(sl::zed::VGA, 60);
         mRealsense = new RealsenseCamera(640, 480, 60, RealsenseCamera::ENABLE_COLOUR);
 
         // Create OpenGL images to visualise the calibration
         glGenTextures(2, mTexture);
         glBindTexture(GL_TEXTURE_2D, mTexture[0]);
         GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
-            mZed->getWidth(ZEDCamera::LEFT), mZed->getHeight(ZEDCamera::LEFT),
+            mRealsense->getWidth(RealsenseCamera::COLOUR), mRealsense->getHeight(RealsenseCamera::COLOUR),
             0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glBindTexture(GL_TEXTURE_2D, mTexture[1]);
         GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
-            mRealsense->getWidth(RealsenseCamera::COLOUR), mRealsense->getHeight(RealsenseCamera::COLOUR),
+            mZed->getWidth(ZEDCamera::LEFT), mZed->getHeight(ZEDCamera::LEFT),
             0, GL_BGR, GL_UNSIGNED_BYTE, nullptr));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -43,12 +43,12 @@ public:
     void render() override
     {
         // Read the left frame from both cameras
-        mZed->capture();
-        mZed->copyData();
-        mZed->copyFrameIntoCVImage(ZEDCamera::LEFT, &mFrame[0]);
         mRealsense->capture();
         mRealsense->copyData();
-        mRealsense->copyFrameIntoCVImage(RealsenseCamera::COLOUR, &mFrame[1]);
+        mRealsense->copyFrameIntoCVImage(RealsenseCamera::COLOUR, &mFrame[0]);
+        mZed->capture();
+        mZed->copyData();
+        mZed->copyFrameIntoCVImage(ZEDCamera::LEFT, &mFrame[1]);
 
         // Display them
         static Rectangle2D leftQuad(glm::vec2(0.0f, 0.0f), glm::vec2(0.5f, 1.0f));
@@ -57,12 +57,12 @@ public:
         shader.bind();
         glBindTexture(GL_TEXTURE_2D, mTexture[0]);
         GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-            mZed->getWidth(ZEDCamera::LEFT), mZed->getHeight(ZEDCamera::LEFT),
+            mRealsense->getWidth(RealsenseCamera::COLOUR), mRealsense->getHeight(RealsenseCamera::COLOUR),
             GL_BGR, GL_UNSIGNED_BYTE, mFrame[0].ptr()));
         leftQuad.render();
         glBindTexture(GL_TEXTURE_2D, mTexture[1]);
         GL_CHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-            mRealsense->getWidth(RealsenseCamera::COLOUR), mRealsense->getHeight(RealsenseCamera::COLOUR),
+            mZed->getWidth(ZEDCamera::LEFT), mZed->getHeight(ZEDCamera::LEFT),
             GL_BGR, GL_UNSIGNED_BYTE, mFrame[1].ptr()));
         rightQuad.render();
     }
@@ -114,8 +114,8 @@ public:
 
                 cv::Mat R, T, E, F;
                 double rms = stereoCalibrate(objectPoints, mLeftCorners, mRightCorners,
-                    zedIntr.cameraMatrix, zedIntr.coeffs,
                     rsIntr.cameraMatrix, rsIntr.coeffs,
+                    zedIntr.cameraMatrix, zedIntr.coeffs,
                     mFrame[0].size(), R, T, E, F,
                     cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, 1e-5),
                     cv::CALIB_FIX_INTRINSIC);

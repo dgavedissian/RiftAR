@@ -7,10 +7,6 @@ class Shader;
 class Rectangle2D;
 class KFusionTracker;
 
-// TODO:
-// - Write helper functions to make construction convenient
-// - Make members private
-
 enum RendererState
 {
     RS_COLOUR,

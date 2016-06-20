@@ -13,6 +13,14 @@
 #include "RealsenseDepthAdjuster.h"
 #include "KFusionTracker.h"
 
+struct RiftPose
+{
+    int frameIndex;
+    ovrPosef eyePose[2];
+
+    RiftPose() : frameIndex(0) {}
+};
+
 class RiftAR : public App
 {
 public:
@@ -50,8 +58,7 @@ private:
     unique_ptr<OutputContext> mOutputCtx;
 
     // Pose state
-    int mFrameIndex;
-    ovrPosef mEyePose[2];
+    RiftPose mPoseState;
 
     // Capture thread
     bool mHasFrame;

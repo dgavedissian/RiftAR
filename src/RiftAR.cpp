@@ -20,8 +20,7 @@
 DEFINE_MAIN(RiftAR);
 
 RiftAR::RiftAR() :
-    mAddArtificalLatency(false),
-    mFrameIndex(0)
+    mAddArtificalLatency(false)
 {
 }
 
@@ -236,11 +235,10 @@ void RiftAR::captureLoop()
 {
     while (mIsCapturing)
     {
-        // Get current pose
+        // Get current pose and increment the frame index
 #ifdef RIFT_DISPLAY
-        int frameIndex = mFrameIndex;
-        ovrPosef eyePose[2];
-        static_cast<RiftOutput*>(mOutputCtx)->newFrame(frameIndex, eyePose);
+        RiftPose poseState = mPoseState;
+        static_cast<RiftOutput*>(mOutputCtx.get())->newFrame(poseState.frameIndex, poseState.eyePose);
 #endif
 
         // Capture from the cameras
@@ -252,9 +250,7 @@ void RiftAR::captureLoop()
         // Copy captured data and pose information
         std::lock_guard<std::mutex> guard(mFrameMutex);
 #ifdef RIFT_DISPLAY
-        mFrameIndex = frameIndex;
-        mEyePose[0] = eyePose[0];
-        mEyePose[1] = eyePose[1];
+        mPoseState = poseState;
 #endif
 #ifdef ENABLE_ZED
         mZed->copyData();
@@ -275,7 +271,7 @@ bool RiftAR::getFrame()
 
     // Set the current frame pose
 #ifdef RIFT_DISPLAY
-    static_cast<RiftOutput*>(mOutputCtx)->setFramePose(mFrameIndex, mEyePose);
+    static_cast<RiftOutput*>(mOutputCtx.get())->setFramePose(mPoseState.frameIndex, mPoseState.eyePose);
 #endif
 
     // Copy frames from the cameras
@@ -287,6 +283,5 @@ bool RiftAR::getFrame()
 
     // Mark this frame as consumed
     mHasFrame = false;
-
     return true;
 }

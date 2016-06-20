@@ -76,36 +76,33 @@ void RiftAR::init()
     depthTextures[0] = mRealsenseDepth->getDepthTexture(0);
     depthTextures[1] = mRealsenseDepth->getDepthTexture(1);
 
-    // Read parameters
+    // Grab the displayed cameras intrinsics
 #ifdef ENABLE_ZED
-    mZedCalib = convertCVToMat3<double>(mZed->getIntrinsics(ZEDCamera::LEFT).cameraMatrix);
+    mDisplayIntr = convertCVToMat3<double>(mZed->getIntrinsics(ZEDCamera::LEFT).cameraMatrix);
 #else
-    mZedCalib = convertCVToMat3<double>(mRealsense->getIntrinsics(RealsenseCamera::COLOUR).cameraMatrix);
+    mDisplayIntr = convertCVToMat3<double>(mRealsense->getIntrinsics(RealsenseCamera::COLOUR).cameraMatrix);
 #endif
 
-    // Read extrinsics parameters that map the realsense colour camera to the ZED
-    glm::mat4 realsenseColourToZedLeft;
+    // Read extrinsics parameters that map the realsense colour camera to the ZED (if enabled)
+    glm::mat4 rsColourToZedLeft;
 #ifdef ENABLE_ZED
     cv::FileStorage fs("../stereo-params.xml", cv::FileStorage::READ);
     cv::Mat rotationMatrix, translation;
     fs["R"] >> rotationMatrix;
     fs["T"] >> translation;
-    realsenseColourToZedLeft = buildExtrinsic(
+    rsColourToZedLeft = buildExtrinsic(
         convertCVToMat3<double>(rotationMatrix),
         convertCVToVec3<double>(translation));
 #endif
 
-    // Extrinsics to map from depth to colour in the F200
-    glm::mat4 depthToColour = mRealsense->getExtrinsics(RealsenseCamera::DEPTH, RealsenseCamera::COLOUR);
-
-    // Combined extrinsics mapping realsense depth to ZED left
-    glm::mat4 realsenseToZedLeft = realsenseColourToZedLeft * depthToColour;
-
+    // Extrinsics to map from depth to left and right eye
+    glm::mat4 rsDepthToColour = mRealsense->getExtrinsics(RealsenseCamera::DEPTH, RealsenseCamera::COLOUR);
+    glm::mat4 rsDepthToZedLeft = rsColourToZedLeft * rsDepthToColour;
 #ifdef ENABLE_ZED
-    mExtrRsToZed[0] = realsenseToZedLeft;
-    mExtrRsToZed[1] = mZed->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT) * realsenseToZedLeft;
+    mExtrRsToZed[0] = rsDepthToZedLeft;
+    mExtrRsToZed[1] = mZed->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT) * rsDepthToZedLeft;
 #else
-    mExtrRsToZed[0] = mExtrRsToZed[1] = realsenseToZedLeft;
+    mExtrRsToZed[0] = mExtrRsToZed[1] = rsDepthToZedLeft;
 #endif
 
     // Inform the renderer of our camera settings
@@ -163,7 +160,7 @@ void RiftAR::render()
         mRenderer->setObjectFound(transform);
 
     // Warp depth textures for occlusion
-    mRealsenseDepth->warpToPair(mDepthFrame, mZedCalib, mExtrRsToZed[0], mExtrRsToZed[1]);
+    mRealsenseDepth->warpToPair(mDepthFrame, mDisplayIntr, mExtrRsToZed[0], mExtrRsToZed[1]);
 
     // Find centre object
     cv::Size2i regionSize(64, 64);

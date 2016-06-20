@@ -78,7 +78,7 @@ void Renderer::renderScene(int eye)
         // Overlay stuff
         if (mAlignmentState == AS_SEARCHING) // Render "guiding" model
         {
-            alignmentEntity->render(thisView, mProjection);
+            mTargetEntity->render(thisView, mProjection);
         }
         else if (mAlignmentState == AS_FOUND) // Render overlays
         {
@@ -94,7 +94,7 @@ void Renderer::renderScene(int eye)
             // depth test also passes
             glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
             glClear(GL_STENCIL_BUFFER_BIT);
-            expandedAlignmentEntity->render(thisView, mProjection);
+            mExpandedTargetEntity->render(thisView, mProjection);
 
             // Enable colour and depth writing, and disable writing to the stencil buffer
             glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -108,7 +108,7 @@ void Renderer::renderScene(int eye)
             glStencilFunc(GL_EQUAL, 1, 0xFF);
 
             // Render overlay
-            overlay->render(thisView, mProjection);
+            mOverlay->render(thisView, mProjection);
 
             // Disable stencil function
             glStencilFunc(GL_ALWAYS, 1, 0xFF);
@@ -119,9 +119,9 @@ void Renderer::renderScene(int eye)
             // Draw the model as a "frame"
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            alignmentEntity->getShader()->setUniform("diffuseColour", glm::vec4(0.4f, 0.8f, 0.4f, 0.2f));
-            alignmentEntity->render(thisView, mProjection);
-            alignmentEntity->getShader()->setUniform("diffuseColour", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+            mTargetEntity->getShader()->setUniform("diffuseColour", glm::vec4(0.4f, 0.8f, 0.4f, 0.2f));
+            mTargetEntity->render(thisView, mProjection);
+            mTargetEntity->getShader()->setUniform("diffuseColour", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
             glDisable(GL_BLEND);
         }
     }
@@ -151,18 +151,18 @@ void Renderer::setState(RendererState rs)
 void Renderer::beginSearchingFor(unique_ptr<Entity> entity)
 {
     mAlignmentState = AS_SEARCHING;
-    alignmentEntity = std::move(entity);
-    alignmentEntity->getShader()->setUniform("diffuseColour", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-    expandedAlignmentEntity = make_unique<Entity>(alignmentEntity->getModel(), alignmentEntity->getShader());
-    overlay = make_unique<Entity>(new Model("../media/meshes/graymatter.stl"), alignmentEntity->getShader());
+    mTargetEntity = std::move(entity);
+    mTargetEntity->getShader()->setUniform("diffuseColour", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+    mExpandedTargetEntity = make_unique<Entity>(mTargetEntity->getModel(), mTargetEntity->getShader());
+    mOverlay = make_unique<Entity>(new Model("../media/meshes/graymatter.stl"), mTargetEntity->getShader());
 }
 
 void Renderer::setObjectFound(glm::mat4 transform)
 {
     mAlignmentState = AS_FOUND;
-    alignmentEntity->setTransform(transform);
-    expandedAlignmentEntity->setTransform(transform * glm::scale(glm::mat4(), glm::vec3(1.1f, 1.1f, 1.1f)));
-    overlay->setTransform(transform);
+    mTargetEntity->setTransform(transform);
+    mExpandedTargetEntity->setTransform(transform * glm::scale(glm::mat4(), glm::vec3(1.1f, 1.1f, 1.1f)));
+    mOverlay->setTransform(transform);
 }
 
 void Renderer::setViewMatrix(const glm::mat4& view)
@@ -187,5 +187,5 @@ float Renderer::getZFar() const
 
 Entity* Renderer::getTargetEntity()
 {
-    return alignmentEntity.get();
+    return mTargetEntity.get();
 }

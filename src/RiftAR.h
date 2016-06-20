@@ -42,7 +42,7 @@ private:
 
     // Warp parameters
     cv::Mat mDepthFrame;
-    glm::mat3 mZedCalib;
+    glm::mat3 mDisplayIntr;
     unique_ptr<RealsenseDepthAdjuster> mRealsenseDepth;
 
     // Rendering

@@ -66,12 +66,12 @@ private:
 
     // Alignment
     AlignmentState mAlignmentState;
-    unique_ptr<Entity> alignmentEntity;
-    unique_ptr<Entity> expandedAlignmentEntity;
+    unique_ptr<Entity> mTargetEntity;
+    unique_ptr<Entity> mExpandedTargetEntity;
 
     // Scene
     float mZNear, mZFar;
-    unique_ptr<Entity> overlay;
+    unique_ptr<Entity> mOverlay;
 
     // Camera
     GLuint mColourTextures[2];

@@ -92,6 +92,7 @@ add_subdirectory(3rdparty/kfusion)
 # RiftAR
 set(RIFTAR_HDR
     src/simplex/DropSimplex.h
+    src/Common.h
     src/DebugOutput.h
     src/FindObject.h
     src/KFusionTracker.h

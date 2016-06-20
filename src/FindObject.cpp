@@ -1,6 +1,8 @@
 #include "Common.h"
 #include "FindObject.h"
 
+//#define DEBUG_FIND_OBJECT
+
 void findCurves(const std::vector<int>& histogram, std::vector<std::tuple<int, int, int>>& curves)
 {
     bool inCurve = false;

@@ -16,7 +16,6 @@
 
 //#define RIFT_DISPLAY
 //#define ENABLE_ZED
-//#define DEBUG_FIND_OBJECT
 
 DEFINE_MAIN(RiftAR);
 
@@ -30,9 +29,9 @@ void RiftAR::init()
 {
     // Set up the cameras
 #ifdef ENABLE_ZED
-    mZed = new ZEDCamera(sl::zed::HD720, 60);
+    mZed = make_unique<ZEDCamera>(sl::zed::HD720, 60);
 #endif
-    mRealsense = new RealsenseCamera(640, 480, 60, RealsenseCamera::ENABLE_COLOUR | RealsenseCamera::ENABLE_DEPTH);
+    mRealsense = make_unique<RealsenseCamera>(640, 480, 60, RealsenseCamera::ENABLE_COLOUR | RealsenseCamera::ENABLE_DEPTH);
 
     // Grab parameters from the destination camera
     cv::Size destinationSize;
@@ -49,10 +48,10 @@ void RiftAR::init()
 #endif
 
     // Initialise tracking system
-    mTracking = new KFusionTracker(mRealsense);
+    mTracking = make_unique<KFusionTracker>(mRealsense.get());
 
     // Set up scene
-    mRenderer = new Renderer(invertColours, 0.01f, 10.0f, USHRT_MAX * mRealsense->getDepthScale(), mTracking);
+    mRenderer = make_unique<Renderer>(invertColours, 0.01f, 10.0f, USHRT_MAX * mRealsense->getDepthScale(), mTracking.get());
     mRenderer->lookingForHead = false;
     mRenderer->foundTransform = false;
     mRenderer->backbufferSize = getSize();
@@ -72,9 +71,9 @@ void RiftAR::init()
 #endif
 
 #ifdef RIFT_DISPLAY
-    mOutputCtx = new RiftOutput(getSize(), destinationSize.width, destinationSize.height, fovh, invertColours);
+    mOutputCtx = make_unique<RiftOutput>(getSize(), destinationSize.width, destinationSize.height, fovh, invertColours);
 #else
-    mOutputCtx = new DebugOutput();
+    mOutputCtx = make_unique<DebugOutput>();
 #endif
 
     // Enable culling, depth testing and stencil testing
@@ -98,17 +97,6 @@ RiftAR::~RiftAR()
 {
     mIsCapturing = false;
     mCaptureThread.join();
-
-    delete mRenderer;
-
-    delete mTracking;
-
-#ifdef ENABLE_ZED
-    delete mZed;
-#endif
-    delete mRealsense;
-
-    delete mOutputCtx;
 }
 
 void RiftAR::render()
@@ -142,7 +130,7 @@ void RiftAR::render()
     // Find centre object
     cv::Size2i regionSize(64, 64);
     cv::Rect region((mDepthFrame.cols - regionSize.width) / 2, (mDepthFrame.rows - regionSize.height) / 2, regionSize.width, regionSize.height);
-    float hit = 0.0f;
+    int hit = 0;
     float focalDepth;
     bool found = findObject(mDepthFrame(region), mRealsense->getDepthScale(), focalDepth);
     if (found)
@@ -160,7 +148,7 @@ void RiftAR::render()
     }
 
     // Render scene
-    mOutputCtx->renderScene(mRenderer, (int)hit);
+    mOutputCtx->renderScene(mRenderer.get(), hit);
 }
 
 void RiftAR::keyEvent(int key, int scancode, int action, int mods)
@@ -212,7 +200,7 @@ cv::Size RiftAR::getSize()
 // Distortion
 void RiftAR::setupDepthWarpStream(cv::Size destinationSize)
 {
-    mRealsenseDepth = new RealsenseDepthAdjuster(mRealsense, destinationSize);
+    mRealsenseDepth = make_unique<RealsenseDepthAdjuster>(mRealsense.get(), destinationSize);
     mRenderer->depthTextures[0] = mRealsenseDepth->getDepthTexture(0);
     mRenderer->depthTextures[1] = mRealsenseDepth->getDepthTexture(1);
 

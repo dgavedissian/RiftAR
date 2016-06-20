@@ -32,21 +32,21 @@ private:
     void captureLoop();
     bool getFrame();
 
-    ZEDCamera* mZed;
-    RealsenseCamera* mRealsense;
+    unique_ptr<ZEDCamera> mZed;
+    unique_ptr<RealsenseCamera> mRealsense;
 
     // KFusion
-    KFusionTracker* mTracking;
+    unique_ptr<KFusionTracker> mTracking;
 
     // Warp parameters
     cv::Mat mDepthFrame;
-    RealsenseDepthAdjuster* mRealsenseDepth;
     glm::mat3 mZedCalib;
     glm::mat4 mRealsenseToZedLeft;
+    unique_ptr<RealsenseDepthAdjuster> mRealsenseDepth;
 
     // Rendering
-    Renderer* mRenderer;
-    OutputContext* mOutputCtx;
+    unique_ptr<Renderer> mRenderer;
+    unique_ptr<OutputContext> mOutputCtx;
 
     // Pose state
     int mFrameIndex;

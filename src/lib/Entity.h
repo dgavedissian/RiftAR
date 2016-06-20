@@ -22,7 +22,7 @@ public:
     Shader* getShader();
     const glm::mat4& getTransform() const;
 
-    static Entity* loadModel(const string& filename);
+    static unique_ptr<Entity> loadModel(const string& filename);
 
 private:
     Model* mModel;

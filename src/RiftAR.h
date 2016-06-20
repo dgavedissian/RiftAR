@@ -26,14 +26,16 @@ public:
     cv::Size getSize() override;
 
 private:
-    void setupDepthWarpStream(cv::Size destinationSize);
-
     // Capture loop
     void captureLoop();
     bool getFrame();
 
+    // Cameras
     unique_ptr<ZEDCamera> mZed;
     unique_ptr<RealsenseCamera> mRealsense;
+
+    // Extrinsics
+    glm::mat4 mExtrRsToZed[2];
 
     // KFusion
     unique_ptr<KFusionTracker> mTracking;
@@ -41,7 +43,6 @@ private:
     // Warp parameters
     cv::Mat mDepthFrame;
     glm::mat3 mZedCalib;
-    glm::mat4 mRealsenseToZedLeft;
     unique_ptr<RealsenseDepthAdjuster> mRealsenseDepth;
 
     // Rendering

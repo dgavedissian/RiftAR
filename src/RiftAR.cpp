@@ -51,25 +51,68 @@ void RiftAR::init()
     mTracking = make_unique<KFusionTracker>(mRealsense.get());
 
     // Set up scene
-    mRenderer = make_unique<Renderer>(invertColours, 0.01f, 10.0f, USHRT_MAX * mRealsense->getDepthScale(), mTracking.get());
-    mRenderer->lookingForHead = false;
-    mRenderer->foundTransform = false;
-    mRenderer->backbufferSize = getSize();
-
-    // Set up depth warping
-    setupDepthWarpStream(destinationSize);
+    glm::mat4 projection;
+    float znear = 0.01f, zfar = 10.0f;
+#ifdef ENABLE_ZED
+    projection = mZed->getIntrinsics(ZEDCamera::LEFT).buildGLProjection(znear, zfar);
+#else
+    projection = mRealsense->getIntrinsics(RealsenseCamera::COLOUR).buildGLProjection(znear, zfar);
+#endif
+    mRenderer = make_unique<Renderer>(projection, znear, zfar, getSize(), USHRT_MAX * mRealsense->getDepthScale(), mTracking.get(), invertColours);
 
     // Set up output
+    GLuint colourTextures[2];
 #ifdef ENABLE_ZED
-    mRenderer->colourTextures[0] = mZed->getTexture(ZEDCamera::LEFT);
-    mRenderer->colourTextures[1] = mZed->getTexture(ZEDCamera::RIGHT);
-    mRenderer->projection = mZed->getIntrinsics(ZEDCamera::LEFT).buildGLProjection(mRenderer->mZNear, mRenderer->mZFar);
+    colourTextures[0] = mZed->getTexture(ZEDCamera::LEFT);
+    colourTextures[1] = mZed->getTexture(ZEDCamera::RIGHT);
 #else
-    mRenderer->colourTextures[0] = mRealsense->getTexture(RealsenseCamera::COLOUR);
-    mRenderer->colourTextures[1] = mRealsense->getTexture(RealsenseCamera::COLOUR);
-    mRenderer->projection = mRealsense->getIntrinsics(RealsenseCamera::COLOUR).buildGLProjection(mRenderer->mZNear, mRenderer->mZFar);
+    colourTextures[0] = mRealsense->getTexture(RealsenseCamera::COLOUR);
+    colourTextures[1] = mRealsense->getTexture(RealsenseCamera::COLOUR);
 #endif
 
+    // Set up depth warping
+    mRealsenseDepth = make_unique<RealsenseDepthAdjuster>(mRealsense.get(), destinationSize);
+    GLuint depthTextures[2];
+    depthTextures[0] = mRealsenseDepth->getDepthTexture(0);
+    depthTextures[1] = mRealsenseDepth->getDepthTexture(1);
+
+    // Read parameters
+#ifdef ENABLE_ZED
+    mZedCalib = convertCVToMat3<double>(mZed->getIntrinsics(ZEDCamera::LEFT).cameraMatrix);
+#else
+    mZedCalib = convertCVToMat3<double>(mRealsense->getIntrinsics(RealsenseCamera::COLOUR).cameraMatrix);
+#endif
+
+    // Read extrinsics parameters that map the realsense colour camera to the ZED
+    glm::mat4 realsenseColourToZedLeft;
+#ifdef ENABLE_ZED
+    cv::FileStorage fs("../stereo-params.xml", cv::FileStorage::READ);
+    cv::Mat rotationMatrix, translation;
+    fs["R"] >> rotationMatrix;
+    fs["T"] >> translation;
+    realsenseColourToZedLeft = buildExtrinsic(
+        convertCVToMat3<double>(rotationMatrix),
+        convertCVToVec3<double>(translation));
+#endif
+
+    // Extrinsics to map from depth to colour in the F200
+    glm::mat4 depthToColour = mRealsense->getExtrinsics(RealsenseCamera::DEPTH, RealsenseCamera::COLOUR);
+
+    // Combined extrinsics mapping realsense depth to ZED left
+    glm::mat4 realsenseToZedLeft = realsenseColourToZedLeft * depthToColour;
+
+#ifdef ENABLE_ZED
+    mExtrRsToZed[0] = realsenseToZedLeft;
+    mExtrRsToZed[1] = mZed->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT) * realsenseToZedLeft;
+#else
+    mExtrRsToZed[0] = mExtrRsToZed[1] = realsenseToZedLeft;
+#endif
+
+    // Inform the renderer of our camera settings
+    mRenderer->setTextures(colourTextures, depthTextures);
+    mRenderer->setExtrinsics(mExtrRsToZed);
+    
+    // Set up output
 #ifdef RIFT_DISPLAY
     mOutputCtx = make_unique<RiftOutput>(getSize(), destinationSize.width, destinationSize.height, fovh, invertColours);
 #else
@@ -112,20 +155,15 @@ void RiftAR::render()
 
     // Update the cameras pose
     mTracking->update(mDepthFrame);
-    mRenderer->view = glm::inverse(mTracking->getCameraPose());
+    mRenderer->setViewMatrix(glm::inverse(mTracking->getCameraPose()));
 
     // Search for the head
-    if (mTracking->checkTargetPosition(mRenderer->headTransform))
-    {
-        mRenderer->lookingForHead = false;
-        mRenderer->foundTransform = true;
-        mRenderer->alignmentEntity->setTransform(mRenderer->headTransform);
-        mRenderer->expandedAlignmentEntity->setTransform(mRenderer->headTransform * glm::scale(glm::mat4(), glm::vec3(1.1f, 1.1f, 1.1f)));
-        mRenderer->overlay->setTransform(mRenderer->headTransform);
-    }
+    glm::mat4 transform;
+    if (mTracking->checkTargetPosition(transform))
+        mRenderer->setObjectFound(transform);
 
     // Warp depth textures for occlusion
-    mRealsenseDepth->warpToPair(mDepthFrame, mZedCalib, mRenderer->eyeMatrix[0], mRenderer->eyeMatrix[1]);
+    mRealsenseDepth->warpToPair(mDepthFrame, mZedCalib, mExtrRsToZed[0], mExtrRsToZed[1]);
 
     // Find centre object
     cv::Size2i regionSize(64, 64);
@@ -172,8 +210,8 @@ void RiftAR::keyEvent(int key, int scancode, int action, int mods)
 
         if (key == GLFW_KEY_SPACE)
         {
-            mTracking->beginSearchingFor(mRenderer->alignmentEntity);
-            mRenderer->lookingForHead = true;
+            mRenderer->beginSearchingFor(Entity::loadModel("../media/meshes/bob-smooth.stl"));
+            mTracking->beginSearchingFor(mRenderer->getTargetEntity());
         }
 
         if (key == GLFW_KEY_R)
@@ -195,47 +233,6 @@ void RiftAR::scrollEvent(double x, double y)
 cv::Size RiftAR::getSize()
 {
     return cv::Size(1600, 600);
-}
-
-// Distortion
-void RiftAR::setupDepthWarpStream(cv::Size destinationSize)
-{
-    mRealsenseDepth = make_unique<RealsenseDepthAdjuster>(mRealsense.get(), destinationSize);
-    mRenderer->depthTextures[0] = mRealsenseDepth->getDepthTexture(0);
-    mRenderer->depthTextures[1] = mRealsenseDepth->getDepthTexture(1);
-
-    // Read parameters
-#ifdef ENABLE_ZED
-    mZedCalib = convertCVToMat3<double>(mZed->getIntrinsics(ZEDCamera::LEFT).cameraMatrix);
-#else
-    mZedCalib = convertCVToMat3<double>(mRealsense->getIntrinsics(RealsenseCamera::COLOUR).cameraMatrix);
-#endif
-
-    // Read extrinsics parameters that map the realsense colour camera to the ZED
-#ifdef ENABLE_ZED
-    cv::FileStorage fs("../stereo-params.xml", cv::FileStorage::READ);
-    cv::Mat rotationMatrix, translation;
-    fs["R"] >> rotationMatrix;
-    fs["T"] >> translation;
-    glm::mat4 realsenseColourToZedLeft = buildExtrinsic(
-        convertCVToMat3<double>(rotationMatrix),
-        convertCVToVec3<double>(translation));
-#else
-    glm::mat4 realsenseColourToZedLeft; // identity
-#endif
-
-    // Extrinsics to map from depth to colour in the F200
-    glm::mat4 depthToColour = mRealsense->getExtrinsics(RealsenseCamera::DEPTH, RealsenseCamera::COLOUR);
-
-    // Combined extrinsics mapping realsense depth to ZED left
-    mRealsenseToZedLeft = realsenseColourToZedLeft * depthToColour;
-
-#ifdef ENABLE_ZED
-    mRenderer->eyeMatrix[0] = mRealsenseToZedLeft;
-    mRenderer->eyeMatrix[1] = mZed->getExtrinsics(ZEDCamera::LEFT, ZEDCamera::RIGHT) * mRealsenseToZedLeft;
-#else
-    mRenderer->eyeMatrix[0] = mRenderer->eyeMatrix[1] = mRealsenseToZedLeft;
-#endif
 }
 
 void RiftAR::captureLoop()

@@ -3,11 +3,17 @@
 #include <iostream>
 #include <string>
 #include <cstdint>
+#include <memory>
 
 using std::string;
 using std::cout;
 using std::cerr;
 using std::endl;
+
+using std::make_shared;
+using std::make_unique;
+using std::shared_ptr;
+using std::unique_ptr;
 
 // GL and GLFW
 #include <GL/gl3w.h>

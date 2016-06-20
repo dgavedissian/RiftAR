@@ -64,7 +64,7 @@ const glm::mat4& Entity::getTransform() const
     return mTransform;
 }
 
-Entity* Entity::loadModel(const string& filename)
+unique_ptr<Entity> Entity::loadModel(const string& filename)
 {
-    return new Entity(new Model(filename), new Shader("../media/model.vs", "../media/model.fs"));
+    return make_unique<Entity>(new Model(filename), new Shader("../media/model.vs", "../media/model.fs"));
 }

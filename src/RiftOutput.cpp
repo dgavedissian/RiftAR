@@ -170,7 +170,7 @@ void RiftOutput::renderScene(Renderer* ctx, int hit)
         THROW_ERROR("Failed to submit frame!");
 
     // Draw the mirror texture
-    glViewport(0, 0, ctx->backbufferSize.width, ctx->backbufferSize.height);
+    glViewport(0, 0, ctx->getBackbufferSize().width, ctx->getBackbufferSize().height);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, mMirrorTextureId);

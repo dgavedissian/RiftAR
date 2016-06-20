@@ -18,51 +18,74 @@ enum RendererState
     RS_DEBUG_KFUSION
 };
 
+enum AlignmentState
+{
+    AS_NOT_FOUND,
+    AS_SEARCHING,
+    AS_FOUND
+};
+
 class Renderer
 {
 public:
-    Renderer(bool invertColour, float znear, float zfar, float depthScale, KFusionTracker* tracker);
+    Renderer(
+        const glm::mat4& projection,
+        float znear, float zfar,
+        cv::Size backbufferSize,
+        float depthScale,
+        KFusionTracker* tracker,
+        bool invertColour);
     ~Renderer();
+
+    void setTextures(GLuint colourTextures[2], GLuint depthTextures[2]);
+    void setExtrinsics(glm::mat4 extrToEye[2]);
 
     void setViewport(cv::Point pos, cv::Size size);
     void renderScene(int eye);
 
     void setState(RendererState rs);
 
-    void toggleModel() { mShowModelAfterAlignment = !mShowModelAfterAlignment; }
+    // Scene
+    void beginSearchingFor(unique_ptr<Entity> entity);
+    void setObjectFound(glm::mat4 transform);
 
-//private:
-    cv::Size backbufferSize;
+    // Matrices
+    void setViewMatrix(const glm::mat4& view);
+
+    // Accessors
+    cv::Size getBackbufferSize() const;
+    float getZNear() const;
+    float getZFar() const;
+    Entity* getTargetEntity();
+
+private:
+    cv::Size mBackbufferSize;
 
     // Configuration
     RendererState mState;
-    bool mShowModelAfterAlignment;
 
-    // Camera inputs
-    GLuint colourTextures[2];
-    GLuint depthTextures[2];
+    // Alignment
+    AlignmentState mAlignmentState;
+    unique_ptr<Entity> alignmentEntity;
+    unique_ptr<Entity> expandedAlignmentEntity;
 
     // Scene
     float mZNear, mZFar;
-    glm::mat4 view, projection;
-    Entity* alignmentEntity;
-    Entity* expandedAlignmentEntity;
-    Entity* overlay;
+    unique_ptr<Entity> overlay;
+
+    // Camera
+    GLuint mColourTextures[2];
+    GLuint mDepthTextures[2];
+    glm::mat4 mExtrToEye[2];
+    glm::mat4 mView, mProjection;
 
     // 2D Rectangle
     Rectangle2D* mQuad;
     Shader* mFullscreenShader;
     Shader* mFullscreenWithDepthShader;
 
-    // Alignment
-    bool lookingForHead;
-    bool foundTransform;
-    glm::mat4 headTransform;
-
-    // Extrinsics
-    glm::mat4 eyeMatrix[2];
-
     // Debugging
     KFusionTracker* mTracker;
     TextureCV mTrackerDebug;
+
 };

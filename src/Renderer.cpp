@@ -8,19 +8,15 @@
 #include "lib/Rectangle2D.h"
 #include "lib/TextureCV.h"
 
-Renderer::Renderer(bool invertColour, float znear, float zfar, float depthScale, KFusionTracker* tracker) :
+Renderer::Renderer(const glm::mat4& projection, float znear, float zfar, cv::Size backbufferSize, float depthScale, KFusionTracker* tracker, bool invertColour) :
     mState(RS_COLOUR),
-    mShowModelAfterAlignment(true),
+    mAlignmentState(AS_NOT_FOUND),
     mZNear(znear),
     mZFar(zfar),
-    mTracker(tracker)
+    mBackbufferSize(backbufferSize),
+    mTracker(tracker),
+    mProjection(projection)
 {
-    // Load models
-    alignmentEntity = Entity::loadModel("../media/meshes/bob-smooth.stl");
-    alignmentEntity->getShader()->setUniform("diffuseColour", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-    expandedAlignmentEntity = new Entity(alignmentEntity->getModel(), alignmentEntity->getShader());
-    overlay = new Entity(new Model("../media/meshes/graymatter.stl"), alignmentEntity->getShader());
-
     // Create rendering primitives
     mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
     mFullscreenShader = new Shader("../media/quad.vs", "../media/quad.fs");
@@ -43,6 +39,20 @@ Renderer::~Renderer()
     delete mFullscreenWithDepthShader;
 }
 
+void Renderer::setTextures(GLuint colourTextures[2], GLuint depthTextures[2])
+{
+    mColourTextures[0] = colourTextures[0];
+    mColourTextures[1] = colourTextures[1];
+    mDepthTextures[0] = depthTextures[0];
+    mDepthTextures[1] = depthTextures[1];
+}
+
+void Renderer::setExtrinsics(glm::mat4 extrToEye[2])
+{
+    mExtrToEye[0] = extrToEye[0];
+    mExtrToEye[1] = extrToEye[1];
+}
+
 void Renderer::setViewport(cv::Point pos, cv::Size size)
 {
     glViewport(pos.x, pos.y, size.width, size.height);
@@ -50,15 +60,15 @@ void Renderer::setViewport(cv::Point pos, cv::Size size)
 
 void Renderer::renderScene(int eye)
 {
-    glm::mat4 thisView = eyeMatrix[eye] * view;
+    glm::mat4 thisView = mExtrToEye[eye] * mView;
 
     if (mState == RS_COLOUR)
     {
         // Render captured frame from the cameras
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, colourTextures[eye]);
+        glBindTexture(GL_TEXTURE_2D, mColourTextures[eye]);
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, depthTextures[eye]);
+        glBindTexture(GL_TEXTURE_2D, mDepthTextures[eye]);
         mFullscreenWithDepthShader->bind();
         mQuad->render();
 
@@ -66,11 +76,11 @@ void Renderer::renderScene(int eye)
         // ...
 
         // Overlay stuff
-        if (lookingForHead) // Render "guiding" model
+        if (mAlignmentState == AS_SEARCHING) // Render "guiding" model
         {
-            alignmentEntity->render(thisView, projection);
+            alignmentEntity->render(thisView, mProjection);
         }
-        else if (foundTransform) // Render overlays
+        else if (mAlignmentState == AS_FOUND) // Render overlays
         {
             // Disable colour and depth writing, and enable writing to the stencil buffer
             glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
@@ -84,7 +94,7 @@ void Renderer::renderScene(int eye)
             // depth test also passes
             glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
             glClear(GL_STENCIL_BUFFER_BIT);
-            expandedAlignmentEntity->render(thisView, projection);
+            expandedAlignmentEntity->render(thisView, mProjection);
 
             // Enable colour and depth writing, and disable writing to the stencil buffer
             glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -98,7 +108,7 @@ void Renderer::renderScene(int eye)
             glStencilFunc(GL_EQUAL, 1, 0xFF);
 
             // Render overlay
-            overlay->render(thisView, projection);
+            overlay->render(thisView, mProjection);
 
             // Disable stencil function
             glStencilFunc(GL_ALWAYS, 1, 0xFF);
@@ -110,7 +120,7 @@ void Renderer::renderScene(int eye)
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             alignmentEntity->getShader()->setUniform("diffuseColour", glm::vec4(0.4f, 0.8f, 0.4f, 0.2f));
-            alignmentEntity->render(thisView, projection);
+            alignmentEntity->render(thisView, mProjection);
             alignmentEntity->getShader()->setUniform("diffuseColour", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
             glDisable(GL_BLEND);
         }
@@ -118,7 +128,7 @@ void Renderer::renderScene(int eye)
     else if (mState == RS_DEBUG_DEPTH)
     {
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, depthTextures[eye]);
+        glBindTexture(GL_TEXTURE_2D, mDepthTextures[eye]);
         mFullscreenShader->bind();
         mQuad->render();
     }
@@ -136,4 +146,46 @@ void Renderer::renderScene(int eye)
 void Renderer::setState(RendererState rs)
 {
     mState = rs;
+}
+
+void Renderer::beginSearchingFor(unique_ptr<Entity> entity)
+{
+    mAlignmentState = AS_SEARCHING;
+    alignmentEntity = std::move(entity);
+    alignmentEntity->getShader()->setUniform("diffuseColour", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+    expandedAlignmentEntity = make_unique<Entity>(alignmentEntity->getModel(), alignmentEntity->getShader());
+    overlay = make_unique<Entity>(new Model("../media/meshes/graymatter.stl"), alignmentEntity->getShader());
+}
+
+void Renderer::setObjectFound(glm::mat4 transform)
+{
+    mAlignmentState = AS_FOUND;
+    alignmentEntity->setTransform(transform);
+    expandedAlignmentEntity->setTransform(transform * glm::scale(glm::mat4(), glm::vec3(1.1f, 1.1f, 1.1f)));
+    overlay->setTransform(transform);
+}
+
+void Renderer::setViewMatrix(const glm::mat4& view)
+{
+    mView = view;
+}
+
+cv::Size Renderer::getBackbufferSize() const
+{
+    return mBackbufferSize;
+}
+
+float Renderer::getZNear() const
+{
+    return mZNear;
+}
+
+float Renderer::getZFar() const
+{
+    return mZFar;
+}
+
+Entity* Renderer::getTargetEntity()
+{
+    return alignmentEntity.get();
 }

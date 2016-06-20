@@ -6,26 +6,24 @@ class Shader;
 class Entity
 {
 public:
-    Entity(Model* m, Shader* s);
+    Entity(shared_ptr<Model> m, shared_ptr<Shader> s);
     ~Entity();
 
     void setPosition(const glm::vec3& position);
     void setOrientation(const glm::quat& orientation);
     void setTransform(const glm::mat4& transform);
 
-    void setModel(Model* model);
-    void setShader(Shader* shader);
+    void setModel(shared_ptr<Model> model);
+    void setShader(shared_ptr<Shader> shader);
 
     void render(const glm::mat4& view, const glm::mat4& projection);
 
-    Model* getModel();
-    Shader* getShader();
+    shared_ptr<Model> getModel();
+    shared_ptr<Shader> getShader();
     const glm::mat4& getTransform() const;
 
-    static unique_ptr<Entity> loadModel(const string& filename);
-
 private:
-    Model* mModel;
-    Shader* mShader;
+    shared_ptr<Model> mModel;
+    shared_ptr<Shader> mShader;
     glm::mat4 mTransform;
 };

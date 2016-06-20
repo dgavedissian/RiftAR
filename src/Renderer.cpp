@@ -18,12 +18,12 @@ Renderer::Renderer(const glm::mat4& projection, float znear, float zfar, cv::Siz
     mProjection(projection)
 {
     // Create rendering primitives
-    mQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
-    mFullscreenShader = new Shader("../media/quad.vs", "../media/quad.fs");
+    mQuad = make_unique<Rectangle2D>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
+    mFullscreenShader = make_shared<Shader>("../media/quad.vs", "../media/quad.fs");
     mFullscreenShader->setUniform("invertColour", invertColour);
 
     // Create objects
-    mFullscreenWithDepthShader = new Shader("../media/quad.vs", "../media/quad_depth.fs");
+    mFullscreenWithDepthShader = make_shared<Shader>("../media/quad.vs", "../media/quad_depth.fs");
     mFullscreenWithDepthShader->setUniform("invertColour", invertColour);
     mFullscreenWithDepthShader->setUniform("rgbCameraImage", 0);
     mFullscreenWithDepthShader->setUniform("depthCameraImage", 1);
@@ -34,9 +34,6 @@ Renderer::Renderer(const glm::mat4& projection, float znear, float zfar, cv::Siz
 
 Renderer::~Renderer()
 {
-    delete mQuad;
-    delete mFullscreenShader;
-    delete mFullscreenWithDepthShader;
 }
 
 void Renderer::setTextures(GLuint colourTextures[2], GLuint depthTextures[2])
@@ -154,7 +151,9 @@ void Renderer::beginSearchingFor(unique_ptr<Entity> entity)
     mTargetEntity = std::move(entity);
     mTargetEntity->getShader()->setUniform("diffuseColour", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
     mExpandedTargetEntity = make_unique<Entity>(mTargetEntity->getModel(), mTargetEntity->getShader());
-    mOverlay = make_unique<Entity>(new Model("../media/meshes/graymatter.stl"), mTargetEntity->getShader());
+    mOverlay = make_unique<Entity>(
+        make_shared<Model>("../media/meshes/graymatter.stl"),
+        mTargetEntity->getShader());
 }
 
 void Renderer::setObjectFound(glm::mat4 transform)

@@ -2,6 +2,7 @@
 
 #include "lib/Rectangle2D.h"
 #include "lib/Entity.h"
+#include "lib/Model.h"
 #include "lib/Shader.h"
 #include "lib/Timer.h"
 #include "lib/TextureCV.h"
@@ -14,10 +15,17 @@
 
 #include "RiftAR.h"
 
-//#define RIFT_DISPLAY
-//#define ENABLE_ZED
+#define RIFT_DISPLAY
+#define ENABLE_ZED
 
 DEFINE_MAIN(RiftAR);
+
+static unique_ptr<Entity> loadModel(const string& filename)
+{
+    return make_unique<Entity>(
+        make_shared<Model>(filename),
+        make_shared<Shader>("../media/model.vs", "../media/model.fs"));
+}
 
 RiftAR::RiftAR() :
     mAddArtificalLatency(false)
@@ -206,7 +214,7 @@ void RiftAR::keyEvent(int key, int scancode, int action, int mods)
 
         if (key == GLFW_KEY_SPACE)
         {
-            mRenderer->beginSearchingFor(Entity::loadModel("../media/meshes/bob-smooth.stl"));
+            mRenderer->beginSearchingFor(loadModel("../media/meshes/bob-smooth.stl"));
             mTracking->beginSearchingFor(mRenderer->getTargetEntity());
         }
 

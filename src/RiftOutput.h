@@ -37,9 +37,7 @@ private:
 
     cv::Size mFrameSize;
 
-    Rectangle2D* mQuad;
-    Rectangle2D* mFullscreenQuad;
-    Shader* mFullscreenShader;
-    Shader* mRiftMirrorShader;
+    unique_ptr<Rectangle2D> mFullscreenQuad;
+    shared_ptr<Shader> mRiftMirrorShader;
 
 };

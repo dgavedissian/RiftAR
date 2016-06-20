@@ -76,9 +76,9 @@ private:
     glm::mat4 mView, mProjection;
 
     // 2D Rectangle
-    Rectangle2D* mQuad;
-    Shader* mFullscreenShader;
-    Shader* mFullscreenWithDepthShader;
+    unique_ptr<Rectangle2D> mQuad;
+    shared_ptr<Shader> mFullscreenShader;
+    shared_ptr<Shader> mFullscreenWithDepthShader;
 
     // Debugging
     KFusionTracker* mTracker;

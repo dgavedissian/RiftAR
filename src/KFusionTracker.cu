@@ -129,7 +129,7 @@ bool KFusionTracker::checkTargetPosition(glm::mat4& resultTransform)
     if (!isSearching())
         return false;
 
-    Model* model = mSearchTarget->getModel();
+    shared_ptr<Model> model = mSearchTarget->getModel();
 
     // Place the object in front of the camera
     glm::mat4 modelOffset = glm::translate(glm::mat4(), model->getSize() * glm::vec3(-0.5f, -0.5f, -2.5f)); // 2 x model depth away from the camera (assuming it's origin is centred)
@@ -224,12 +224,13 @@ __global__ void getCostForEachVertex(float* costs, float3* vertexData, int verte
     }
 }
 
-float KFusionTracker::getCost(Model* model, Volume volume, const glm::mat4& transform)
+float KFusionTracker::getCost(shared_ptr<Model> model, Volume volume, const glm::mat4& transform)
 {
     // Select some vertices
     int stride = 10;
     int count = model->getVertices().size() / stride;
 
+    // TODO: Cache this memory allocation
     // Allocate space
     float3* vertices = new float3[count];
     float* costs = new float[count];
@@ -291,7 +292,7 @@ glm::mat4 KFusionTracker::convKFusionCoordSystem(const glm::mat4& transform) con
     return newPosition * newOrientation;
 }
 
-KFusionTracker::CostFunction::CostFunction(Model* model, Volume volume, KFusionTracker* tracker) :
+KFusionTracker::CostFunction::CostFunction(shared_ptr<Model> model, Volume volume, KFusionTracker* tracker) :
     mModel(model),
     mVolume(volume),
     mTracker(tracker)

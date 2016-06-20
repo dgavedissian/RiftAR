@@ -3,7 +3,7 @@
 #include "Model.h"
 #include "Shader.h"
 
-Entity::Entity(Model* m, Shader* s) :
+Entity::Entity(shared_ptr<Model> m, shared_ptr<Shader> s) :
     mModel(m),
     mShader(s)
 {
@@ -31,30 +31,29 @@ void Entity::setTransform(const glm::mat4& transform)
     mTransform = transform;
 }
 
-void Entity::setModel(Model* model)
+void Entity::setModel(shared_ptr<Model> model)
 {
     mModel = model;
 }
 
-void Entity::setShader(Shader* shader)
+void Entity::setShader(shared_ptr<Shader> shader)
 {
     mShader = shader;
 }
 
 void Entity::render(const glm::mat4& view, const glm::mat4& projection)
 {
-    mShader->bind();
     mShader->setUniform("modelViewProjectionMatrix", projection * view * mTransform);
     mShader->setUniform("modelMatrix", mTransform);
     mModel->render();
 }
 
-Model* Entity::getModel()
+shared_ptr<Model> Entity::getModel()
 {
     return mModel;
 }
 
-Shader* Entity::getShader()
+shared_ptr<Shader> Entity::getShader()
 {
     return mShader;
 }
@@ -62,9 +61,4 @@ Shader* Entity::getShader()
 const glm::mat4& Entity::getTransform() const
 {
     return mTransform;
-}
-
-unique_ptr<Entity> Entity::loadModel(const string& filename)
-{
-    return make_unique<Entity>(new Model(filename), new Shader("../media/model.vs", "../media/model.fs"));
 }

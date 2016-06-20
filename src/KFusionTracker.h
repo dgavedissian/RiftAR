@@ -27,7 +27,7 @@ public:
     void getCurrentView(cv::Mat& mat);
 
 private:
-    float getCost(Model* model, Volume volume, const glm::mat4& transform);
+    float getCost(shared_ptr<Model> model, Volume volume, const glm::mat4& transform);
 
     glm::mat3 convKFusionCoordSystem(const glm::mat3& rotation) const;
     glm::mat4 convKFusionCoordSystem(const glm::mat4& transform) const;
@@ -36,7 +36,7 @@ private:
     class CostFunction : public drop::CostFunctionSimplex
     {
     public:
-        CostFunction(Model* model, Volume volume, KFusionTracker* tracker);
+        CostFunction(shared_ptr<Model> model, Volume volume, KFusionTracker* tracker);
 
         virtual double evaluate(const std::vector<double> &parameters);
 
@@ -44,7 +44,7 @@ private:
         static void mat4ToParameters(const glm::mat4& matrix, std::vector<double>& parameters);
 
     private:
-        Model* mModel;
+        shared_ptr<Model> mModel;
         Volume mVolume;
         KFusionTracker* mTracker;
 

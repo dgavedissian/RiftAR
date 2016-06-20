@@ -92,14 +92,12 @@ RiftOutput::RiftOutput(cv::Size backbufferSize, uint cameraWidth, uint cameraHei
     float offsetLensCenterY = (atanf(mHmdDesc.DefaultEyeFov[0].UpTan) / ovrFovV) * 2.f - 1.f;
 
     // Create rendering primitives
-    mFullscreenQuad = new Rectangle2D(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
-    mRiftMirrorShader = new Shader("../media/quad.vs", "../media/quad.fs");
+    mFullscreenQuad = make_unique<Rectangle2D>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
+    mRiftMirrorShader = make_shared<Shader>("../media/quad.vs", "../media/quad.fs");
 }
 
 RiftOutput::~RiftOutput()
 {
-    delete mRiftMirrorShader;
-    delete mFullscreenQuad;
     ovr_Destroy(mSession);
     ovr_Shutdown();
 }

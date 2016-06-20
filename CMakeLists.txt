@@ -93,6 +93,7 @@ add_subdirectory(3rdparty/kfusion)
 set(RIFTAR_HDR
     src/simplex/DropSimplex.h
     src/DebugOutput.h
+    src/FindObject.h
     src/KFusionTracker.h
     src/OutputContext.h
     src/RealsenseDepthAdjuster.h
@@ -102,6 +103,7 @@ set(RIFTAR_HDR
 set(RIFTAR_SRC
     src/simplex/DropSimplex.cpp
     src/DebugOutput.cpp
+    src/FindObject.cpp
     src/KFusionTracker.cu
     src/RealsenseDepthAdjuster.cu
     src/Renderer.cpp

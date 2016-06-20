@@ -77,13 +77,13 @@ RiftOutput::RiftOutput(cv::Size backbufferSize, uint cameraWidth, uint cameraHei
         THROW_ERROR("Failed to create the mirror texture");
     ovr_GetMirrorTextureBufferGL(mSession, mMirrorTexture, &mMirrorTextureId);
 
-    // Calculate Oculus FOV
+    // Calculate headset FOV
     float ovrFovH = atanf(mHmdDesc.DefaultEyeFov[0].LeftTan) + atanf(mHmdDesc.DefaultEyeFov[0].RightTan);
     float ovrFovV = atanf(mHmdDesc.DefaultEyeFov[0].UpTan) + atanf(mHmdDesc.DefaultEyeFov[0].DownTan);
 
     // Calculate the width and height of the camera stream being displayed on the headset in GL coordinates
-    mFrameSize.width = cameraFovH / ovrFovH * (mBufferSize.w / 2);
-    mFrameSize.height = mFrameSize.width * (cameraHeight / (float)cameraWidth);
+    mFrameSize.width = (int)(cameraFovH / ovrFovH * (mBufferSize.w / 2));
+    mFrameSize.height = (int)(mFrameSize.width * (cameraHeight / (float)cameraWidth));
     float widthGL = (float)mFrameSize.width / (mBufferSize.w / 2);
     float heightGL = (float)mFrameSize.height / mBufferSize.h;
 
